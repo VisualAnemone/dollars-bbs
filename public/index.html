@@ -4,94 +4,218 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dollars BBS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-  <!-- ── View: Password ───────────────────────────────────────────────── -->
-  <section id="view-password" class="view">
-    <div class="center-box">
-      <h1 class="logo">DOLLARS BBS</h1>
-      <p class="tagline">You are one of us.</p>
-      <form id="form-password">
-        <input id="input-password" type="password" placeholder="enter password" autocomplete="off" spellcheck="false">
-        <button type="submit">ENTER</button>
-        <p id="password-error" class="error hidden">Wrong password.</p>
-      </form>
+<!-- ══ OVERLAY: Password ═══════════════════════════════════════════════════ -->
+<div id="overlay-password" class="overlay">
+  <div class="overlay-inner">
+    <div class="splash-logo">DOLLARS</div>
+    <div class="splash-sub">BBS // PRIVATE NETWORK</div>
+    <div class="splash-divider"></div>
+    <form id="form-password" class="auth-form">
+      <label class="auth-label">ENTER PASSWORD</label>
+      <input id="input-password" type="password" class="auth-input" placeholder="••••••••" autocomplete="off" spellcheck="false">
+      <button type="submit" class="auth-btn">ACCESS BBS</button>
+      <p id="password-error" class="auth-error hidden">// incorrect password</p>
+    </form>
+    <div class="splash-footer">DOLLARS v2.1 &nbsp;·&nbsp; IKEBUKURO</div>
+  </div>
+</div>
+
+<!-- ══ OVERLAY: Username ═══════════════════════════════════════════════════ -->
+<div id="overlay-username" class="overlay hidden">
+  <div class="overlay-inner">
+    <div class="splash-logo">DOLLARS</div>
+    <div class="splash-sub">IDENTIFY YOURSELF</div>
+    <div class="splash-divider"></div>
+    <form id="form-username" class="auth-form">
+      <label class="auth-label">CHOOSE A HANDLE</label>
+      <input id="input-username" type="text" class="auth-input" placeholder="anonymous" maxlength="24" autocomplete="off" spellcheck="false">
+      <button type="submit" class="auth-btn">JOIN THE DOLLARS</button>
+      <p id="username-error" class="auth-error hidden">// handle cannot be empty</p>
+    </form>
+    <div class="splash-footer">your identity is yours alone</div>
+  </div>
+</div>
+
+<!-- ══ APP ══════════════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <!-- Header -->
+  <header id="site-header">
+    <div class="hdr-brand">
+      <span class="hdr-logo">DOLLARS</span>
+      <span class="hdr-badge">BBS v2.1</span>
+      <span class="hdr-live"><span class="live-dot"></span> LIVE</span>
     </div>
-  </section>
-
-  <!-- ── View: Username ───────────────────────────────────────────────── -->
-  <section id="view-username" class="view hidden">
-    <div class="center-box">
-      <h1 class="logo">DOLLARS BBS</h1>
-      <p class="tagline">Choose your name.</p>
-      <form id="form-username">
-        <input id="input-username" type="text" placeholder="your name" maxlength="24" autocomplete="off" spellcheck="false">
-        <button type="submit">JOIN</button>
-        <p id="username-error" class="error hidden">Name cannot be empty.</p>
-      </form>
+    <div class="hdr-stats">
+      <span class="hdr-stat"><span class="stat-icon">≡≡</span> 12,847 members</span>
+      <span class="hdr-stat"><span class="live-dot sm"></span> <span id="stat-online">0</span> online</span>
+      <span class="hdr-stat" id="stat-time">--:-- -- JST</span>
     </div>
-  </section>
-
-  <!-- ── View: Main BBS ───────────────────────────────────────────────── -->
-  <section id="view-main" class="view hidden">
-    <header class="bbs-header">
-      <span class="header-title">DOLLARS BBS</span>
-      <nav class="tab-bar">
-        <button class="tab active" data-tab="chat">CHAT</button>
-        <button class="tab" data-tab="board">BOARD</button>
-      </nav>
-      <button id="btn-logout" class="logout-btn" title="Logout">&#x23CF;</button>
-    </header>
-
-    <!-- Chat Tab -->
-    <div id="tab-chat" class="tab-content">
-      <div id="chat-log" class="chat-log"></div>
-      <form id="form-chat" class="chat-input-row">
-        <input id="chat-input" type="text" placeholder="say something..." maxlength="1000" autocomplete="off" spellcheck="false">
-        <button type="submit">SEND</button>
-      </form>
+    <div class="hdr-user">
+      User: <strong id="display-username">---</strong>
+      <button id="btn-logout" class="logout-btn">[logout]</button>
     </div>
+  </header>
 
-    <!-- Board Tab -->
-    <div id="tab-board" class="tab-content hidden">
-      <!-- Post list -->
-      <div id="board-list-view">
-        <div class="board-toolbar">
-          <button id="btn-new-post">+ NEW POST</button>
+  <!-- Tab Navigation -->
+  <nav id="tab-nav">
+    <button class="tab-btn active" data-tab="chat"><span class="tab-dot"></span> LIVE CHAT</button>
+    <button class="tab-btn" data-tab="forum">▣ FORUM</button>
+    <button class="tab-btn" data-tab="about">ABOUT</button>
+  </nav>
+
+  <!-- ── TAB: Chat ──────────────────────────────────────────────────────── -->
+  <div id="pane-chat" class="pane">
+    <div class="split-layout">
+
+      <aside class="sidebar">
+        <div class="sidebar-heading">CHAT ROOMS</div>
+        <div id="room-list">
+          <button class="room-item active" data-room="main">
+            <span class="room-dot active"></span>
+            <div class="room-details">
+              <span class="room-name">Main Chat</span>
+              <span class="room-desc">General discussion</span>
+            </div>
+          </button>
+          <button class="room-item" data-room="ikebukuro">
+            <span class="room-dot active"></span>
+            <div class="room-details">
+              <span class="room-name">Ikebukuro Local</span>
+              <span class="room-desc">Local area chat</span>
+            </div>
+          </button>
+          <button class="room-item" data-room="missions">
+            <span class="room-dot active"></span>
+            <div class="room-details">
+              <span class="room-name">Missions</span>
+              <span class="room-desc">Help requests</span>
+            </div>
+          </button>
+          <button class="room-item" data-room="nightshift">
+            <span class="room-dot active"></span>
+            <div class="room-details">
+              <span class="room-name">Night Shift</span>
+              <span class="room-desc">Late night crew</span>
+            </div>
+          </button>
         </div>
-        <div id="post-list"></div>
-      </div>
 
-      <!-- New post form -->
-      <div id="board-new-post" class="hidden">
-        <div class="board-toolbar">
-          <button id="btn-cancel-post">&#x2190; BACK</button>
+        <div class="sidebar-heading" style="margin-top:1.25rem">ONLINE NOW:</div>
+        <div id="online-users-list"></div>
+      </aside>
+
+      <section class="main-area">
+        <div class="area-header">
+          <span id="room-title-display">Main Chat</span>
+          <span class="area-header-sub">Real-time sync &bull; <span id="room-online-count">0</span> online</span>
         </div>
-        <form id="form-new-post" class="post-form">
-          <input id="post-title" type="text" placeholder="title" maxlength="120" spellcheck="false">
-          <textarea id="post-content" placeholder="write something..." maxlength="4000" spellcheck="false" rows="8"></textarea>
-          <button type="submit">POST</button>
+        <div id="chat-log"></div>
+        <form id="form-chat" class="chat-bar">
+          <span id="chat-name-chip">---</span>
+          <input id="chat-input" type="text" placeholder="say something to the Dollars..." maxlength="1000" autocomplete="off" spellcheck="false">
+          <button type="submit" class="send-btn">&#x25BA;</button>
         </form>
-      </div>
+      </section>
 
-      <!-- Post detail -->
-      <div id="board-post-detail" class="hidden">
-        <div class="board-toolbar">
-          <button id="btn-back-to-list">&#x2190; BACK</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: Forum ─────────────────────────────────────────────────────── -->
+  <div id="pane-forum" class="pane hidden">
+    <div class="split-layout">
+
+      <aside class="sidebar">
+        <div class="sidebar-heading">BOARDS</div>
+        <div id="board-list">
+          <button class="board-item active" data-board="main">MAIN</button>
+          <button class="board-item" data-board="news">NEWS</button>
+          <button class="board-item" data-board="missions">MISSIONS</button>
+          <button class="board-item" data-board="offtopic">OFFTOPIC</button>
         </div>
-        <article id="post-detail-content"></article>
-        <div id="replies-list"></div>
-        <form id="form-reply" class="reply-form">
-          <textarea id="reply-content" placeholder="write a reply..." maxlength="2000" spellcheck="false" rows="4"></textarea>
-          <button type="submit">REPLY</button>
-        </form>
+      </aside>
+
+      <section class="main-area" id="forum-main">
+
+        <!-- View: Post list -->
+        <div id="forum-view-list">
+          <div class="area-header">
+            <span id="board-title-display">&gt; MAIN BOARD</span>
+            <button id="btn-new-post" class="action-btn">+ NEW POST</button>
+          </div>
+          <div id="post-list"></div>
+        </div>
+
+        <!-- View: New post -->
+        <div id="forum-view-newpost" class="hidden">
+          <div class="area-header">
+            <button id="btn-cancel-post" class="back-btn">&#x2190; BACK</button>
+            <span id="new-post-board-label">&gt; NEW POST &mdash; MAIN BOARD</span>
+          </div>
+          <form id="form-new-post" class="post-compose">
+            <input id="new-post-title" type="text" placeholder="title" maxlength="120" spellcheck="false">
+            <textarea id="new-post-content" placeholder="write something..." maxlength="4000" spellcheck="false" rows="10"></textarea>
+            <button type="submit" class="action-btn">POST TO BOARD</button>
+          </form>
+        </div>
+
+        <!-- View: Post detail -->
+        <div id="forum-view-detail" class="hidden">
+          <div class="area-header">
+            <button id="btn-back-to-list" class="back-btn">&#x2190; BACK</button>
+          </div>
+          <article id="post-detail-body"></article>
+          <div id="post-replies"></div>
+          <form id="form-reply" class="reply-compose">
+            <textarea id="reply-content" placeholder="write a reply..." maxlength="2000" spellcheck="false" rows="4"></textarea>
+            <button type="submit" class="action-btn">REPLY</button>
+          </form>
+        </div>
+
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ── TAB: About ─────────────────────────────────────────────────────── -->
+  <div id="pane-about" class="pane hidden">
+    <div class="about-wrap">
+      <div class="about-block">
+        <div class="about-header">&gt; ABOUT THE DOLLARS</div>
+        <div class="about-body">
+          <p>The Dollars have no face.</p>
+          <p>We have no color.</p>
+          <p>We are students, workers, artists, wanderers. We pass each other on the train every day without knowing. We share the same city, the same silence, the same streets.</p>
+          <p>This BBS is our only meeting place.</p>
+          <p>There are no rules except one:<br>do not cause trouble in the name of the Dollars.</p>
+          <p>Beyond that — talk. Help. Connect. Disappear.</p>
+          <p class="about-highlight">You were invited here.<br>That means you are already one of us.</p>
+        </div>
+      </div>
+      <div class="about-block about-stats-block">
+        <div class="about-header">&gt; SYSTEM INFO</div>
+        <div class="about-stats">
+          <div class="about-stat-row"><span class="asl">VERSION</span><span class="asv">Dollars BBS v2.1</span></div>
+          <div class="about-stat-row"><span class="asl">LOCATION</span><span class="asv">Ikebukuro, Tokyo, Japan</span></div>
+          <div class="about-stat-row"><span class="asl">MEMBERS</span><span class="asv">12,847 registered</span></div>
+          <div class="about-stat-row"><span class="asl">ONLINE</span><span class="asv"><span id="about-online">0</span> now</span></div>
+          <div class="about-stat-row"><span class="asl">STATUS</span><span class="asv asv-live">ACTIVE</span></div>
+          <div class="about-stat-row"><span class="asl">TIME</span><span class="asv"><span id="about-time">--:-- JST</span></span></div>
+          <div class="about-stat-row"><span class="asl">PASSWORD</span><span class="asv">known only to members</span></div>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/app.js"></script>
+</div><!-- #app -->
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>
