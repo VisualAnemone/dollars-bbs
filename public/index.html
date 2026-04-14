@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dollars BBS</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00ff41">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
@@ -47,6 +51,7 @@
 
   <!-- Header -->
   <header id="site-header">
+    <button id="btn-sidebar-toggle" class="hdr-icon-btn mobile-only" aria-label="Toggle sidebar">☰</button>
     <div class="hdr-brand">
       <span class="hdr-logo">DOLLARS</span>
       <span class="hdr-badge">BBS v2.1</span>
@@ -56,6 +61,11 @@
       <span class="hdr-stat"><span class="stat-icon">≡≡</span> 12,847 members</span>
       <span class="hdr-stat"><span class="live-dot sm"></span> <span id="stat-online">0</span> online</span>
       <span class="hdr-stat" id="stat-time">--:-- -- JST</span>
+    </div>
+    <div class="hdr-actions">
+      <button id="btn-search" class="hdr-icon-btn" title="Search posts">🔍</button>
+      <button id="btn-broadcast" class="hdr-action-btn">⚡ <span class="bc-label">BROADCAST</span></button>
+      <span id="admin-badge" class="admin-badge hidden">ADMIN</span>
     </div>
     <div class="hdr-user">
       User: <strong id="display-username">---</strong>
@@ -67,6 +77,7 @@
   <nav id="tab-nav">
     <button class="tab-btn active" data-tab="chat"><span class="tab-dot"></span> LIVE CHAT</button>
     <button class="tab-btn" data-tab="forum">▣ FORUM</button>
+    <button class="tab-btn" data-tab="sightings">👁 SIGHTINGS</button>
     <button class="tab-btn" data-tab="about">ABOUT</button>
   </nav>
 
@@ -74,7 +85,7 @@
   <div id="pane-chat" class="pane">
     <div class="split-layout">
 
-      <aside class="sidebar">
+      <aside class="sidebar" id="chat-sidebar">
         <div class="sidebar-heading">CHAT ROOMS</div>
         <div id="room-list">
           <button class="room-item active" data-room="main">
@@ -116,7 +127,11 @@
           <span id="room-title-display">Main Chat</span>
           <span class="area-header-sub">Real-time sync &bull; <span id="room-online-count">0</span> online</span>
         </div>
-        <div id="chat-log"></div>
+        <div class="chat-wrap">
+          <div id="chat-log"></div>
+          <div id="typing-indicator" class="typing-indicator hidden"></div>
+          <button id="scroll-to-bottom" class="scroll-btn hidden">▼ new messages</button>
+        </div>
         <form id="form-chat" class="chat-bar">
           <span id="chat-name-chip">---</span>
           <input id="chat-input" type="text" placeholder="say something to the Dollars..." maxlength="1000" autocomplete="off" spellcheck="false">
@@ -131,7 +146,7 @@
   <div id="pane-forum" class="pane hidden">
     <div class="split-layout">
 
-      <aside class="sidebar">
+      <aside class="sidebar" id="forum-sidebar">
         <div class="sidebar-heading">BOARDS</div>
         <div id="board-list">
           <button class="board-item active" data-board="main">MAIN</button>
@@ -171,6 +186,7 @@
             <button id="btn-back-to-list" class="back-btn">&#x2190; BACK</button>
           </div>
           <article id="post-detail-body"></article>
+          <div id="reaction-bar" class="reaction-bar"></div>
           <div id="post-replies"></div>
           <form id="form-reply" class="reply-compose">
             <textarea id="reply-content" placeholder="write a reply..." maxlength="2000" spellcheck="false" rows="4"></textarea>
@@ -178,6 +194,40 @@
           </form>
         </div>
 
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ── TAB: Sightings ─────────────────────────────────────────────────── -->
+  <div id="pane-sightings" class="pane hidden">
+    <div class="split-layout">
+
+      <aside class="sidebar">
+        <div class="sidebar-heading">SIGHTINGS</div>
+        <div class="sidebar-info">
+          <p>Ephemeral reports from Dollars on the ground.</p>
+          <p>All posts expire after 24 hours.</p>
+          <p>Document what you see.</p>
+        </div>
+        <button id="btn-new-sighting" class="sidebar-post-btn">+ POST SIGHTING</button>
+      </aside>
+
+      <section class="main-area">
+        <div class="area-header">
+          <span><span class="live-dot" style="margin-right:.4rem"></span>LIVE SIGHTINGS FEED</span>
+          <span class="area-header-sub">posts expire after 24h</span>
+        </div>
+        <div id="sightings-compose" class="sighting-compose hidden">
+          <form id="form-sighting">
+            <textarea id="sighting-input" placeholder="describe what you saw..." maxlength="500" spellcheck="false" rows="3"></textarea>
+            <div class="sighting-compose-actions">
+              <button type="submit" class="action-btn">POST</button>
+              <button type="button" id="btn-cancel-sighting" class="back-btn">CANCEL</button>
+            </div>
+          </form>
+        </div>
+        <div id="sightings-list" class="sightings-list"></div>
       </section>
 
     </div>
@@ -214,6 +264,46 @@
   </div>
 
 </div><!-- #app -->
+
+<!-- ══ SEARCH OVERLAY ══════════════════════════════════════════════════════ -->
+<div id="search-overlay" class="search-overlay hidden">
+  <div class="search-panel">
+    <div class="search-top">
+      <span class="search-label">🔍 SEARCH POSTS</span>
+      <button id="btn-close-search" class="back-btn">✕ CLOSE</button>
+    </div>
+    <input id="search-input" type="text" class="search-input-field" placeholder="search title, content, or author..." maxlength="100" autocomplete="off" spellcheck="false">
+    <div id="search-results" class="search-results"></div>
+  </div>
+</div>
+
+<!-- ══ BROADCAST COMPOSE MODAL ════════════════════════════════════════════ -->
+<div id="broadcast-modal" class="modal hidden">
+  <div class="modal-inner">
+    <div class="modal-header">⚡ BROADCAST TO ALL DOLLARS</div>
+    <div class="modal-note">// this message will appear on every connected screen</div>
+    <textarea id="broadcast-input" class="modal-textarea" placeholder="send a message to the Dollars..." maxlength="140" spellcheck="false" rows="3"></textarea>
+    <div class="broadcast-charcount"><span id="broadcast-chars">0</span>/140</div>
+    <div class="modal-actions">
+      <button id="btn-send-broadcast" class="action-btn">⚡ SEND BROADCAST</button>
+      <button id="btn-cancel-broadcast" class="back-btn">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BROADCAST RECEIVED OVERLAY ═════════════════════════════════════════ -->
+<div id="broadcast-overlay" class="broadcast-overlay hidden">
+  <div class="broadcast-inner">
+    <div class="broadcast-tag">// INCOMING BROADCAST FROM THE DOLLARS</div>
+    <div id="broadcast-from" class="broadcast-from"></div>
+    <div id="broadcast-text" class="broadcast-text"></div>
+    <div class="broadcast-sig">— Dollars</div>
+    <div class="broadcast-progress-wrap">
+      <div id="broadcast-progress" class="broadcast-progress"></div>
+    </div>
+    <button id="btn-dismiss-broadcast" class="broadcast-dismiss">[ DISMISS ]</button>
+  </div>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/app.js"></script>

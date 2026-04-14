@@ -1,0 +1,17 @@
+{
+  "name": "Dollars BBS",
+  "short_name": "Dollars",
+  "description": "The Dollars BBS — private network for Ikebukuro members",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080d08",
+  "theme_color": "#00ff41",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
