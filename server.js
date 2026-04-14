@@ -8,8 +8,10 @@ const path   = require('path');
 const os     = require('os');
 const crypto = require('crypto');
 
-const PORT          = process.env.PORT          || 3000;
-const SITE_PASSWORD = process.env.SITE_PASSWORD || 'dollars';
+const PORT           = process.env.PORT           || 3000;
+const SITE_PASSWORD  = process.env.SITE_PASSWORD  || 'dollars';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ikebukuro';
+const TOKEN_TTL      = 7 * 24 * 3600 * 1000; // 7 days
 
 // ─── Database ─────────────────────────────────────────────────────────────────
 
@@ -41,6 +43,20 @@ db.exec(`
     content    TEXT    NOT NULL,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
   );
+  CREATE TABLE IF NOT EXISTS post_reactions (
+    post_id INTEGER NOT NULL,
+    emoji   TEXT    NOT NULL,
+    count   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (post_id, emoji),
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS sightings (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user       TEXT    NOT NULL,
+    text       TEXT    NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    expires_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS _meta (
     key   TEXT PRIMARY KEY,
     value TEXT
@@ -66,18 +82,17 @@ if (!db.prepare("SELECT value FROM _meta WHERE key='seeded'").get()) {
   const iP = db.prepare('INSERT INTO posts (board,title,author,content,pinned,views,created_at) VALUES (?,?,?,?,?,?,?)');
   const iR = db.prepare('INSERT INTO replies (post_id,author,content,created_at) VALUES (?,?,?,?)');
 
-  // Chat rooms
   [
-    ['main','Mikado_99',   'is anyone online right now?',                            ago(3*H+15*M)],
-    ['main','Kida_M',      'always! what\'s up?',                                    ago(3*H+12*M)],
-    ['main','Anri_S',      'something strange happened near Sunshine 60 tonight',    ago(2*H+45*M)],
-    ['main','Mikado_99',   'yeah the Black Rider was spotted again',                 ago(2*H+40*M)],
-    ['main','UrbanExplorer','I saw her. completely silent, no visible rider',        ago(2*H+20*M)],
-    ['main','Philosopher_X','interesting. what do you think she actually is?',       ago(1*H+50*M)],
-    ['main','NightOwl_22', 'probably urban legend tbh',                              ago(1*H+15*M)],
-    ['main','CeltyHunter', 'she\'s REAL. I have photos',                             ago(45*M)],
-    ['main','Kida_M',      'lol sure you do buddy',                                  ago(40*M)],
-    ['main','SpeedFreak',  'saw her doing 200kph on the highway. absolutely insane', ago(20*M)],
+    ['main','Mikado_99',    'is anyone online right now?',                            ago(3*H+15*M)],
+    ['main','Kida_M',       'always! what\'s up?',                                    ago(3*H+12*M)],
+    ['main','Anri_S',       'something strange happened near Sunshine 60 tonight',    ago(2*H+45*M)],
+    ['main','Mikado_99',    'yeah the Black Rider was spotted again',                 ago(2*H+40*M)],
+    ['main','UrbanExplorer','I saw her. completely silent, no visible rider',         ago(2*H+20*M)],
+    ['main','Philosopher_X','interesting. what do you think she actually is?',        ago(1*H+50*M)],
+    ['main','NightOwl_22',  'probably urban legend tbh',                              ago(1*H+15*M)],
+    ['main','CeltyHunter',  'she\'s REAL. I have photos',                             ago(45*M)],
+    ['main','Kida_M',       'lol sure you do buddy',                                  ago(40*M)],
+    ['main','SpeedFreak',   'saw her doing 200kph on the highway. absolutely insane', ago(20*M)],
   ].forEach(r => iM.run(...r));
 
   [
@@ -92,24 +107,23 @@ if (!db.prepare("SELECT value FROM _meta WHERE key='seeded'").get()) {
   ].forEach(r => iM.run(...r));
 
   [
-    ['missions','KittyLover99',   'LOST CAT: orange tabby near Sunshine 60, anyone seen her?', ago(D+2*H)],
-    ['missions','HelpBot',        'post a photo if you can! we\'ll keep an eye out',            ago(D+1*H+55*M)],
-    ['missions','KittyLover99',   'her name is Mikan, super friendly, blue collar with a bell', ago(D+1*H+30*M)],
-    ['missions','Tanaka_M',       'I think I\'ve seen this cat. will keep looking',             ago(D+50*M)],
-    ['missions','GoodSamaritan',  'leaving food near east exit just in case',                   ago(D+20*M)],
+    ['missions','KittyLover99',  'LOST CAT: orange tabby near Sunshine 60, anyone seen her?', ago(D+2*H)],
+    ['missions','HelpBot',       'post a photo if you can! we\'ll keep an eye out',            ago(D+1*H+55*M)],
+    ['missions','KittyLover99',  'her name is Mikan, super friendly, blue collar with a bell', ago(D+1*H+30*M)],
+    ['missions','Tanaka_M',      'I think I\'ve seen this cat. will keep looking',             ago(D+50*M)],
+    ['missions','GoodSamaritan', 'leaving food near east exit just in case',                   ago(D+20*M)],
   ].forEach(r => iM.run(...r));
 
   [
-    ['nightshift','NightOwl_22',  '3am and still awake as usual',                               ago(8*H)],
-    ['nightshift','Insomniac_D',  'same. ikebukuro is weirdly peaceful right now',              ago(7*H+55*M)],
-    ['nightshift','NightOwl_22',  'except for the motorcycle lol',                              ago(7*H+30*M)],
-    ['nightshift','Insomniac_D',  'lol ALWAYS her',                                             ago(7*H+25*M)],
-    ['nightshift','GhostHours',   'I genuinely love these late night convos',                   ago(6*H+10*M)],
-    ['nightshift','NightOwl_22',  'me too. different city at night',                            ago(5*H+45*M)],
-    ['nightshift','Insomniac_D',  'less chaos, more mystery',                                   ago(5*H+30*M)],
+    ['nightshift','NightOwl_22', '3am and still awake as usual',                               ago(8*H)],
+    ['nightshift','Insomniac_D', 'same. ikebukuro is weirdly peaceful right now',              ago(7*H+55*M)],
+    ['nightshift','NightOwl_22', 'except for the motorcycle lol',                              ago(7*H+30*M)],
+    ['nightshift','Insomniac_D', 'lol ALWAYS her',                                             ago(7*H+25*M)],
+    ['nightshift','GhostHours',  'I genuinely love these late night convos',                   ago(6*H+10*M)],
+    ['nightshift','NightOwl_22', 'me too. different city at night',                            ago(5*H+45*M)],
+    ['nightshift','Insomniac_D', 'less chaos, more mystery',                                   ago(5*H+30*M)],
   ].forEach(r => iM.run(...r));
 
-  // Posts
   const p1 = iP.run('main','Welcome to the Dollars — READ FIRST','Admin',
     'Welcome to the Dollars BBS.\n\nWe are everyone and no one. There are no rules here except one: do not cause trouble in the name of the Dollars.\n\nPost freely. Help each other. Share what you know. And remember — we are colorless. We have no face, no banner, no hierarchy. Just people.\n\nIf you were invited here, you are already one of us.\n\n— Admin',
     1,34231,ago(90*D));
@@ -150,10 +164,9 @@ if (!db.prepare("SELECT value FROM _meta WHERE key='seeded'").get()) {
     'I\'ve been quietly documenting the weird things in Ikebukuro:\n\n— The headless rider on the black motorcycle\n— An information broker who sits on vending machines and seems to know everything about everyone\n— A bartender who never seems to age\n— Groups of kids who move through the city like they own it, faces hidden\n\nStarting to think this city has several layers most people never see.',
     0,1203,ago(4*D));
 
-  // Replies
-  iR.run(p1.lastInsertRowid,'Mikado_99',  'Thank you. This place already means a lot.',           ago(89*D));
-  iR.run(p1.lastInsertRowid,'Kida_M',     'Colorless suits me. Colors cause too many problems.',   ago(88*D));
-  iR.run(p1.lastInsertRowid,'Anri_S',     'I found this place by accident. Glad I did.',           ago(85*D));
+  iR.run(p1.lastInsertRowid,'Mikado_99',   'Thank you. This place already means a lot.',           ago(89*D));
+  iR.run(p1.lastInsertRowid,'Kida_M',      'Colorless suits me. Colors cause too many problems.',   ago(88*D));
+  iR.run(p1.lastInsertRowid,'Anri_S',      'I found this place by accident. Glad I did.',           ago(85*D));
 
   iR.run(p2.lastInsertRowid,'Kida_M',       'I\'ve seen her too. She\'s real. Don\'t follow her.', ago(20*M));
   iR.run(p2.lastInsertRowid,'CeltyHunter',  'She\'s been spotted way more the past two weeks. Something is going on.', ago(15*M));
@@ -177,26 +190,52 @@ if (!db.prepare("SELECT value FROM _meta WHERE key='seeded'").get()) {
 
 // ─── Prepared statements ──────────────────────────────────────────────────────
 
+const VALID_BOARDS = new Set(['main', 'news', 'missions', 'offtopic']);
+const VALID_EMOJIS = new Set(['👍', '❤️', '🔥', '👀', '✅']);
+
 const stmts = {
-  insertMessage:   db.prepare('INSERT INTO messages (room,user,text) VALUES (?,?,?)'),
-  roomMessages:    db.prepare('SELECT * FROM messages WHERE room=? ORDER BY timestamp ASC LIMIT 80'),
-  boardPosts:      db.prepare('SELECT p.*, (SELECT COUNT(*) FROM replies r WHERE r.post_id=p.id) AS reply_count FROM posts p WHERE board=? ORDER BY pinned DESC, created_at DESC'),
-  insertPost:      db.prepare('INSERT INTO posts (board,title,author,content) VALUES (?,?,?,?)'),
-  getPost:         db.prepare('SELECT p.*, (SELECT COUNT(*) FROM replies r WHERE r.post_id=p.id) AS reply_count FROM posts p WHERE p.id=?'),
-  getReplies:      db.prepare('SELECT * FROM replies WHERE post_id=? ORDER BY created_at ASC'),
-  insertReply:     db.prepare('INSERT INTO replies (post_id,author,content) VALUES (?,?,?)'),
-  incrementViews:  db.prepare('UPDATE posts SET views=views+1 WHERE id=?'),
-  boardCounts:     db.prepare("SELECT board, COUNT(*) as cnt FROM posts GROUP BY board"),
+  insertMessage:  db.prepare('INSERT INTO messages (room,user,text) VALUES (?,?,?)'),
+  roomMessages:   db.prepare('SELECT * FROM messages WHERE room=? ORDER BY timestamp ASC LIMIT 80'),
+  boardPosts:     db.prepare('SELECT p.*, (SELECT COUNT(*) FROM replies r WHERE r.post_id=p.id) AS reply_count FROM posts p WHERE board=? ORDER BY pinned DESC, created_at DESC'),
+  insertPost:     db.prepare('INSERT INTO posts (board,title,author,content) VALUES (?,?,?,?)'),
+  getPost:        db.prepare('SELECT p.*, (SELECT COUNT(*) FROM replies r WHERE r.post_id=p.id) AS reply_count FROM posts p WHERE p.id=?'),
+  getReplies:     db.prepare('SELECT * FROM replies WHERE post_id=? ORDER BY created_at ASC'),
+  getReactions:   db.prepare('SELECT emoji, count FROM post_reactions WHERE post_id=?'),
+  insertReply:    db.prepare('INSERT INTO replies (post_id,author,content) VALUES (?,?,?)'),
+  incrementViews: db.prepare('UPDATE posts SET views=views+1 WHERE id=?'),
+  upsertReaction: db.prepare('INSERT INTO post_reactions (post_id,emoji,count) VALUES (?,?,1) ON CONFLICT(post_id,emoji) DO UPDATE SET count=count+1'),
+  getSightings:   db.prepare('SELECT * FROM sightings WHERE expires_at > unixepoch() ORDER BY created_at DESC'),
+  insertSighting: db.prepare('INSERT INTO sightings (user,text,expires_at) VALUES (?,?,unixepoch()+86400)'),
+  getSighting:    db.prepare('SELECT * FROM sightings WHERE id=?'),
 };
+
+// Sightings cleanup every hour
+setInterval(() => {
+  try { db.exec('DELETE FROM sightings WHERE expires_at <= unixepoch()'); } catch {}
+}, 3_600_000);
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-const validTokens = new Set();
+const tokens = new Map(); // token -> { expiry, admin }
+
+function issueToken(admin) {
+  const token = crypto.randomBytes(32).toString('hex');
+  tokens.set(token, { expiry: Date.now() + TOKEN_TTL, admin });
+  return token;
+}
 
 function requireAuth(req, res, next) {
-  const t = req.headers['x-auth-token'];
-  if (t && validTokens.has(t)) return next();
+  const t  = req.headers['x-auth-token'];
+  const td = t && tokens.get(t);
+  if (td && td.expiry > Date.now()) return next();
   res.status(401).json({ error: 'Unauthorized' });
+}
+
+function requireAdmin(req, res, next) {
+  const t  = req.headers['x-auth-token'];
+  const td = t && tokens.get(t);
+  if (td && td.expiry > Date.now() && td.admin) return next();
+  res.status(403).json({ error: 'Forbidden' });
 }
 
 // ─── Express ──────────────────────────────────────────────────────────────────
@@ -204,12 +243,12 @@ function requireAuth(req, res, next) {
 const app = express();
 app.use(express.json());
 
-// Chrome Private Network Access fix — required for Chrome to load from LAN IPs
+// Chrome Private Network Access fix — required for Chrome on LAN IPs
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Private-Network', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type,x-auth-token');
     return res.sendStatus(204);
   }
@@ -218,25 +257,31 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
 app.post('/api/auth', (req, res) => {
   const { password } = req.body || {};
-  if (password === SITE_PASSWORD) {
-    const token = crypto.randomBytes(32).toString('hex');
-    validTokens.add(token);
-    res.json({ token });
+  if (password === SITE_PASSWORD || password === ADMIN_PASSWORD) {
+    const admin = password === ADMIN_PASSWORD;
+    const token = issueToken(admin);
+    res.json({ token, admin });
   } else {
     res.status(401).json({ error: 'Wrong password' });
   }
 });
 
+// ── Posts ─────────────────────────────────────────────────────────────────────
+
 app.get('/api/posts', requireAuth, (req, res) => {
   const board = req.query.board || 'main';
+  if (!VALID_BOARDS.has(board)) return res.status(400).json({ error: 'Invalid board' });
   res.json(stmts.boardPosts.all(board));
 });
 
 app.post('/api/posts', requireAuth, (req, res) => {
   const { board = 'main', title, author, content } = req.body || {};
   if (!title || !author || !content) return res.status(400).json({ error: 'Missing fields' });
+  if (!VALID_BOARDS.has(board)) return res.status(400).json({ error: 'Invalid board' });
   const info = stmts.insertPost.run(board, title, author, content);
   const post = stmts.getPost.get(info.lastInsertRowid);
   io.to('bbs').emit('new_post', post);
@@ -247,8 +292,9 @@ app.get('/api/posts/:id', requireAuth, (req, res) => {
   const post = stmts.getPost.get(Number(req.params.id));
   if (!post) return res.status(404).json({ error: 'Not found' });
   stmts.incrementViews.run(post.id);
-  const replies = stmts.getReplies.all(post.id);
-  res.json({ ...post, replies });
+  const replies   = stmts.getReplies.all(post.id);
+  const reactions = stmts.getReactions.all(post.id);
+  res.json({ ...post, replies, reactions });
 });
 
 app.post('/api/posts/:id/reply', requireAuth, (req, res) => {
@@ -256,10 +302,83 @@ app.post('/api/posts/:id/reply', requireAuth, (req, res) => {
   if (!post) return res.status(404).json({ error: 'Not found' });
   const { author, content } = req.body || {};
   if (!author || !content) return res.status(400).json({ error: 'Missing fields' });
-  const info = stmts.insertReply.run(post.id, author, content);
+  const info  = stmts.insertReply.run(post.id, author, content);
   const reply = { id: info.lastInsertRowid, post_id: post.id, author, content, created_at: Math.floor(Date.now() / 1000) };
   io.to('bbs').emit('new_reply', { post_id: post.id, reply });
   res.json(reply);
+});
+
+app.post('/api/posts/:id/react', requireAuth, (req, res) => {
+  const id    = Number(req.params.id);
+  const { emoji } = req.body || {};
+  if (!VALID_EMOJIS.has(emoji)) return res.status(400).json({ error: 'Invalid emoji' });
+  const post = stmts.getPost.get(id);
+  if (!post) return res.status(404).json({ error: 'Not found' });
+  stmts.upsertReaction.run(id, emoji);
+  const reactions = stmts.getReactions.all(id);
+  io.to('bbs').emit('post_reacted', { post_id: id, reactions });
+  res.json({ reactions });
+});
+
+// ── Admin routes ──────────────────────────────────────────────────────────────
+
+app.delete('/api/posts/:id', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  db.prepare('DELETE FROM replies WHERE post_id=?').run(id);
+  db.prepare('DELETE FROM post_reactions WHERE post_id=?').run(id);
+  db.prepare('DELETE FROM posts WHERE id=?').run(id);
+  io.to('bbs').emit('post_deleted', { id });
+  res.json({ ok: true });
+});
+
+app.patch('/api/posts/:id/pin', requireAdmin, (req, res) => {
+  const id = Number(req.params.id);
+  const { pinned } = req.body || {};
+  db.prepare('UPDATE posts SET pinned=? WHERE id=?').run(pinned ? 1 : 0, id);
+  io.to('bbs').emit('post_pinned', { id, pinned: !!pinned });
+  res.json({ ok: true });
+});
+
+app.delete('/api/replies/:id', requireAdmin, (req, res) => {
+  const id    = Number(req.params.id);
+  const reply = db.prepare('SELECT post_id FROM replies WHERE id=?').get(id);
+  if (!reply) return res.status(404).json({ error: 'Not found' });
+  db.prepare('DELETE FROM replies WHERE id=?').run(id);
+  io.to('bbs').emit('reply_deleted', { id, post_id: reply.post_id });
+  res.json({ ok: true });
+});
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+app.get('/api/search', requireAuth, (req, res) => {
+  const q = String(req.query.q || '').trim().slice(0, 100);
+  if (!q) return res.json([]);
+  const like = '%' + q + '%';
+  const results = db.prepare(`
+    SELECT id, board, title, author, created_at,
+           (SELECT COUNT(*) FROM replies r WHERE r.post_id=p.id) AS reply_count
+    FROM posts p
+    WHERE title LIKE ? OR content LIKE ? OR author LIKE ?
+    ORDER BY created_at DESC LIMIT 20
+  `).all(like, like, like);
+  res.json(results);
+});
+
+// ── Sightings ─────────────────────────────────────────────────────────────────
+
+app.get('/api/sightings', requireAuth, (req, res) => {
+  res.json(stmts.getSightings.all());
+});
+
+app.post('/api/sightings', requireAuth, (req, res) => {
+  const { user, text } = req.body || {};
+  if (!user || !text) return res.status(400).json({ error: 'Missing fields' });
+  const sanitized = String(text).trim().slice(0, 500);
+  if (!sanitized) return res.status(400).json({ error: 'Empty text' });
+  const info     = stmts.insertSighting.run(String(user).trim().slice(0, 24), sanitized);
+  const sighting = stmts.getSighting.get(info.lastInsertRowid);
+  io.to('bbs').emit('new_sighting', sighting);
+  res.json(sighting);
 });
 
 // ─── HTTP + Socket.IO ─────────────────────────────────────────────────────────
@@ -279,7 +398,11 @@ const VALID_ROOMS = new Set(['main', 'ikebukuro', 'missions', 'nightshift']);
 
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
-  if (token && validTokens.has(token)) return next();
+  const td    = token && tokens.get(token);
+  if (td && td.expiry > Date.now()) {
+    socket.isAdmin = td.admin;
+    return next();
+  }
   next(new Error('Unauthorized'));
 });
 
@@ -288,16 +411,15 @@ io.on('connection', (socket) => {
 
   socket.on('join', ({ username }) => {
     socket.username = username;
+    socket.to('bbs').emit('user_joined', { username });
     broadcastOnlineStats();
   });
 
   socket.on('join_room', ({ room }) => {
     if (!VALID_ROOMS.has(room)) return;
-    // Leave previous chat room
     if (socket.currentRoom) socket.leave('chat:' + socket.currentRoom);
     socket.currentRoom = room;
     socket.join('chat:' + room);
-    // Send history for this room
     const messages = stmts.roomMessages.all(room);
     socket.emit('room_history', { room, messages });
     broadcastRoomCounts();
@@ -305,14 +427,35 @@ io.on('connection', (socket) => {
 
   socket.on('chat_message', ({ text }) => {
     if (!socket.username || !socket.currentRoom || typeof text !== 'string') return;
+    const now = Date.now();
+    if (socket.lastMsg && now - socket.lastMsg < 1000) return; // 1 msg/sec rate limit
+    socket.lastMsg = now;
     const sanitized = text.trim().slice(0, 1000);
     if (!sanitized) return;
     stmts.insertMessage.run(socket.currentRoom, socket.username, sanitized);
-    const msg = { room: socket.currentRoom, user: socket.username, text: sanitized, timestamp: Math.floor(Date.now() / 1000) };
+    const msg = { room: socket.currentRoom, user: socket.username, text: sanitized, timestamp: Math.floor(now / 1000) };
     io.to('chat:' + socket.currentRoom).emit('message', msg);
   });
 
+  socket.on('typing', () => {
+    if (!socket.username || !socket.currentRoom) return;
+    socket.to('chat:' + socket.currentRoom).emit('user_typing', { username: socket.username });
+  });
+
+  socket.on('broadcast', ({ text }) => {
+    if (!socket.username) return;
+    const now = Date.now();
+    if (socket.lastBroadcast && now - socket.lastBroadcast < 24 * 3600 * 1000) return;
+    socket.lastBroadcast = now;
+    const sanitized = String(text || '').trim().slice(0, 140);
+    if (!sanitized) return;
+    io.emit('broadcast', { text: sanitized, from: socket.username, timestamp: Math.floor(now / 1000) });
+  });
+
   socket.on('disconnect', () => {
+    if (socket.username) {
+      socket.to('bbs').emit('user_left', { username: socket.username });
+    }
     if (socket.currentRoom) socket.leave('chat:' + socket.currentRoom);
     broadcastRoomCounts();
     broadcastOnlineStats();
@@ -321,7 +464,7 @@ io.on('connection', (socket) => {
 
 async function broadcastOnlineStats() {
   const sockets = await io.in('bbs').fetchSockets();
-  const users = [...new Set(sockets.map(s => s.username).filter(Boolean))];
+  const users   = [...new Set(sockets.map(s => s.username).filter(Boolean))];
   io.emit('online_stats', { total: sockets.length, users });
 }
 
@@ -345,5 +488,6 @@ server.listen(PORT, '0.0.0.0', () => {
       if (addr.family === 'IPv4' && !addr.internal)
         console.log(`  Network: http://${addr.address}:${PORT}`);
   console.log(`\nPassword: ${SITE_PASSWORD}`);
+  console.log(`Admin pw: ${ADMIN_PASSWORD}`);
   console.log('Share the Network URL with other devices on the same network.\n');
 });
