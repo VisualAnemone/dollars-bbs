@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dollars BBS</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- ── View: Password ───────────────────────────────────────────────── -->
+  <section id="view-password" class="view">
+    <div class="center-box">
+      <h1 class="logo">DOLLARS BBS</h1>
+      <p class="tagline">You are one of us.</p>
+      <form id="form-password">
+        <input id="input-password" type="password" placeholder="enter password" autocomplete="off" spellcheck="false">
+        <button type="submit">ENTER</button>
+        <p id="password-error" class="error hidden">Wrong password.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ── View: Username ───────────────────────────────────────────────── -->
+  <section id="view-username" class="view hidden">
+    <div class="center-box">
+      <h1 class="logo">DOLLARS BBS</h1>
+      <p class="tagline">Choose your name.</p>
+      <form id="form-username">
+        <input id="input-username" type="text" placeholder="your name" maxlength="24" autocomplete="off" spellcheck="false">
+        <button type="submit">JOIN</button>
+        <p id="username-error" class="error hidden">Name cannot be empty.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ── View: Main BBS ───────────────────────────────────────────────── -->
+  <section id="view-main" class="view hidden">
+    <header class="bbs-header">
+      <span class="header-title">DOLLARS BBS</span>
+      <nav class="tab-bar">
+        <button class="tab active" data-tab="chat">CHAT</button>
+        <button class="tab" data-tab="board">BOARD</button>
+      </nav>
+      <button id="btn-logout" class="logout-btn" title="Logout">&#x23CF;</button>
+    </header>
+
+    <!-- Chat Tab -->
+    <div id="tab-chat" class="tab-content">
+      <div id="chat-log" class="chat-log"></div>
+      <form id="form-chat" class="chat-input-row">
+        <input id="chat-input" type="text" placeholder="say something..." maxlength="1000" autocomplete="off" spellcheck="false">
+        <button type="submit">SEND</button>
+      </form>
+    </div>
+
+    <!-- Board Tab -->
+    <div id="tab-board" class="tab-content hidden">
+      <!-- Post list -->
+      <div id="board-list-view">
+        <div class="board-toolbar">
+          <button id="btn-new-post">+ NEW POST</button>
+        </div>
+        <div id="post-list"></div>
+      </div>
+
+      <!-- New post form -->
+      <div id="board-new-post" class="hidden">
+        <div class="board-toolbar">
+          <button id="btn-cancel-post">&#x2190; BACK</button>
+        </div>
+        <form id="form-new-post" class="post-form">
+          <input id="post-title" type="text" placeholder="title" maxlength="120" spellcheck="false">
+          <textarea id="post-content" placeholder="write something..." maxlength="4000" spellcheck="false" rows="8"></textarea>
+          <button type="submit">POST</button>
+        </form>
+      </div>
+
+      <!-- Post detail -->
+      <div id="board-post-detail" class="hidden">
+        <div class="board-toolbar">
+          <button id="btn-back-to-list">&#x2190; BACK</button>
+        </div>
+        <article id="post-detail-content"></article>
+        <div id="replies-list"></div>
+        <form id="form-reply" class="reply-form">
+          <textarea id="reply-content" placeholder="write a reply..." maxlength="2000" spellcheck="false" rows="4"></textarea>
+          <button type="submit">REPLY</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
