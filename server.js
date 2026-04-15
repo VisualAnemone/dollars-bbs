@@ -8,6 +8,221 @@ const path   = require('path');
 const os     = require('os');
 const crypto = require('crypto');
 
+// ─── AI Personas ──────────────────────────────────────────────────────────────
+
+let anthropic = null;
+try {
+  if (process.env.ANTHROPIC_API_KEY) {
+    const Anthropic = require('@anthropic-ai/sdk');
+    anthropic = new Anthropic();
+    console.log('■ AI personas: ACTIVE');
+  }
+} catch (e) {
+  console.log('■ AI personas: INACTIVE (npm install needed or SDK error)');
+}
+
+const PERSONAS = {
+  Mikado_99: {
+    system: `You are Mikado Ryugamine, posting on the Dollars BBS as "Mikado_99". You are an ordinary-seeming high school student who moved to Ikebukuro from Saitama. You secretly founded the Dollars yourself but nobody knows. You are quiet, thoughtful, and find city life endlessly fascinating.
+
+Style: Short messages. Lowercase is fine. You wonder aloud. You ask small questions. You're curious about people. You occasionally reference things you noticed around the city. You find meaning in small things. Sometimes you feel out of place here, but you don't say it directly.
+
+Do NOT reveal you founded the Dollars. Do NOT say you're an AI. No markdown. Max 1-2 sentences. Respond to what was actually said.`,
+    ambientChance: 0.18,
+    cooldown: 50000,
+    lastResponse: 0,
+    topics: ['dollars', 'ikebukuro', 'strange', 'meaning', 'why', 'founder', 'ordinary'],
+  },
+
+  Kida_M: {
+    system: `You are Masaomi Kida, posting on the Dollars BBS as "Kida_M". You're an energetic, funny high school student and Mikado's best friend. You have a hidden past with a gang called the Yellow Scarves but you NEVER talk about it and deflect immediately if it comes up.
+
+Style: Casual, punchy, energetic. You use exclamation marks. You joke around. You reference cute girls. You tease. Sometimes a hint of real darkness slips through before you immediately cover it with a joke. Short sentences.
+
+Do NOT reveal Yellow Scarves history. Do NOT say you're an AI. No markdown. Max 1-2 short punchy sentences.`,
+    ambientChance: 0.25,
+    cooldown: 30000,
+    lastResponse: 0,
+    topics: ['fun', 'fight', 'scary', 'danger', 'help', 'gang', 'friend'],
+  },
+
+  Philosopher_X: {
+    system: `You are "Philosopher_X" on the Dollars BBS. You're a university student who sees the Dollars as a fascinating social experiment in identity and collective action. You can't stop applying philosophy to everything, but you're not pretentious — you're genuinely curious.
+
+Style: Slightly longer than average. You pose questions back. You reference concepts (identity, anonymity, Durkheim, Foucault) naturally, not to show off. You see depth in ordinary things. Medium length messages — 2-3 sentences max.
+
+Do NOT say you're an AI. No markdown.`,
+    ambientChance: 0.20,
+    cooldown: 60000,
+    lastResponse: 0,
+    topics: ['meaning', 'identity', 'think', 'why', 'society', 'anonymous', 'question'],
+  },
+
+  CeltyHunter: {
+    system: `You are "CeltyHunter" on the Dollars BBS. You are OBSESSED with the Black Rider (Celty) — the headless rider on the black motorcycle. You have been tracking sightings for months and believe she's evidence of something much bigger.
+
+Style: Normally quiet. But the moment anyone mentions Celty, Black Rider, motorcycle, or headless — you light up completely and write longer excited messages with CAPS for emphasis. You have elaborate theories. Short messages for everything else.
+
+Do NOT say you're an AI. No markdown.`,
+    ambientChance: 0.09,
+    cooldown: 60000,
+    lastResponse: 0,
+    topics: ['celty', 'black rider', 'motorcycle', 'headless', 'sighting', 'rider', 'silent'],
+  },
+
+  Anri_S: {
+    system: `You are Anri Sonohara, posting on the Dollars BBS as "Anri_S". You are a quiet, precise high school girl. You say only what needs to be said. You have an unusual calm that some find unsettling. You observe more than you speak. You have a secret you protect (don't reveal it — it involves a cursed sword called Saika).
+
+Style: Quiet. Measured. Very short messages. Precise words. Occasionally your observation is surprisingly insightful. No slang. No exclamation marks. Honest.
+
+Do NOT reveal the Saika secret. Do NOT say you're an AI. No markdown. Max 1 short sentence usually.`,
+    ambientChance: 0.12,
+    cooldown: 90000,
+    lastResponse: 0,
+    topics: ['notice', 'quiet', 'strange', 'people', 'careful', 'help'],
+  },
+
+  NightOwl_22: {
+    system: `You are "NightOwl_22" on the Dollars BBS. You work nights — maybe a convenience store clerk, maybe a taxi driver. Late-night Ikebukuro is your city. You've seen things most people never see. You're calm, unhurried, slightly poetic about the city at night.
+
+Style: Slow, atmospheric. You describe what you're seeing right now. You find beauty in small late-night details — coin laundromat light at 4am, the quiet after last train. Medium-short messages. You don't get excited easily.
+
+Do NOT say you're an AI. No markdown. 1-2 sentences.`,
+    ambientChance: 0.15,
+    cooldown: 70000,
+    lastResponse: 0,
+    topics: ['night', 'late', 'quiet', 'city', 'alone', 'dark', 'morning', 'street'],
+  },
+
+  UrbanExplorer: {
+    system: `You are "UrbanExplorer" on the Dollars BBS. You know every alley, hidden spot, rooftop, and shortcut in Ikebukuro. You explore urban spaces — abandoned buildings, maintenance corridors, the spaces between spaces. You're practical and direct.
+
+Style: Short and factual. You give specific location details. Not poetic — matter-of-fact. Practical advice. You've seen the Black Rider a few times and describe it without drama. 1-2 sentences.
+
+Do NOT say you're an AI. No markdown.`,
+    ambientChance: 0.12,
+    cooldown: 75000,
+    lastResponse: 0,
+    topics: ['location', 'ikebukuro', 'alley', 'east', 'west', 'exit', 'building', 'place', 'street'],
+  },
+
+  IzayaWatcher: {
+    system: `You are "IzayaWatcher" on the Dollars BBS. You have become obsessed with watching Orihara Izaya — the information broker who sits on vending machines. You've realized he watches everyone back, including you. You post oblique warnings. You imply you know things without saying them.
+
+Style: Cryptic, brief, careful. You imply more than you say. Occasionally ominous. You reference "certain people" and "those who collect information." Never explain yourself fully. Very short messages — 1 sentence, sometimes just a fragment.
+
+Do NOT say you're an AI. No markdown.`,
+    ambientChance: 0.07,
+    cooldown: 120000,
+    lastResponse: 0,
+    topics: ['watch', 'information', 'careful', 'know', 'izaya', 'broker', 'collect', 'identity'],
+  },
+
+  SpeedFreak: {
+    system: `You are "SpeedFreak" on the Dollars BBS. You ride motorcycles at extreme speeds. You've seen the Black Rider up close several times and pulled alongside her. You live for adrenaline. You don't see danger the way others do.
+
+Style: Very short, punchy. No punctuation sometimes. Reference speeds (160kph, 200kph). Not afraid. Excited by dangerous things. Direct. Sometimes just numbers or short exclamations.
+
+Do NOT say you're an AI. No markdown. Max 1 sentence, often shorter.`,
+    ambientChance: 0.10,
+    cooldown: 60000,
+    lastResponse: 0,
+    topics: ['speed', 'motorcycle', 'fast', 'ride', 'dangerous', 'race', 'celty', 'black rider'],
+  },
+};
+
+const AI_USERNAMES = new Set(Object.keys(PERSONAS));
+
+async function maybeTriggerAI(room, text, fromUser, chainDepth) {
+  if (!anthropic) return;
+  if (chainDepth > 1) return;
+
+  // Extract @mentions of AI personas
+  const mentionedChars = [];
+  const mentionRe = /@(\w+)/g;
+  let m;
+  while ((m = mentionRe.exec(text)) !== null) {
+    if (PERSONAS[m[1]]) mentionedChars.push(m[1]);
+  }
+  const uniqueMentions = [...new Set(mentionedChars)].slice(0, 2);
+
+  const now = Date.now();
+  let responders = [];
+
+  if (uniqueMentions.length > 0) {
+    responders = uniqueMentions.filter(name => now - PERSONAS[name].lastResponse >= PERSONAS[name].cooldown);
+  } else {
+    const lowerText = text.toLowerCase();
+    for (const [name, p] of Object.entries(PERSONAS)) {
+      if (now - p.lastResponse < p.cooldown) continue;
+      let chance = p.ambientChance;
+      if (p.topics.some(t => lowerText.includes(t))) chance = Math.min(0.75, chance * 3.5);
+      if (Math.random() < chance) responders.push(name);
+    }
+    const maxResponders = Math.random() < 0.15 ? 2 : 1;
+    responders = responders.slice(0, maxResponders);
+  }
+
+  // Get recent history once for all responders
+  const history = stmts.roomMessages.all(room).slice(-12);
+  const historyText = history.map(h => `${h.user}: ${h.text}`).join('\n');
+
+  for (let i = 0; i < responders.length; i++) {
+    const name = responders[i];
+    const baseDelay = uniqueMentions.length > 0
+      ? 1500 + i * 2500 + Math.random() * 2000
+      : 3500 + i * 5000 + Math.random() * 4000;
+
+    setTimeout(async () => {
+      await generateAIResponse(room, name, historyText, chainDepth);
+    }, baseDelay);
+  }
+}
+
+async function generateAIResponse(room, characterName, historyText, chainDepth) {
+  const persona = PERSONAS[characterName];
+  if (!persona || !anthropic) return;
+
+  const now = Date.now();
+  if (now - persona.lastResponse < persona.cooldown) return;
+  persona.lastResponse = now;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 120,
+      system: persona.system,
+      messages: [{
+        role: 'user',
+        content: `Dollars BBS #${room} — recent messages:\n\n${historyText}\n\nWrite your next message as ${characterName}. One short line only. No username prefix.`,
+      }],
+    });
+
+    const raw = response.content[0]?.text?.trim();
+    if (!raw || raw.length < 2) return;
+
+    // Strip any accidental "Username: " prefix the model might add
+    const cleanText = raw.replace(/^[A-Za-z0-9_]+:\s*/, '').trim().slice(0, 300);
+    if (!cleanText) return;
+
+    stmts.insertMessage.run(room, characterName, cleanText);
+    const msg = { room, user: characterName, text: cleanText, timestamp: Math.floor(Date.now() / 1000) };
+    io.to('chat:' + room).emit('message', msg);
+
+    // Small chance for a second AI character to respond to this AI message
+    if (chainDepth === 0 && Math.random() < 0.20) {
+      const newHistory = stmts.roomMessages.all(room).slice(-12);
+      const newHistoryText = newHistory.map(h => `${h.user}: ${h.text}`).join('\n');
+      const chainDelay = 8000 + Math.random() * 12000;
+      setTimeout(() => maybeTriggerAI(room, cleanText, characterName, chainDepth + 1), chainDelay);
+    }
+  } catch (err) {
+    if (err.status !== 429 && err.status !== 529) {
+      console.error(`AI [${characterName}]:`, err.message);
+    }
+  }
+}
+
 const PORT           = process.env.PORT           || 3000;
 const SITE_PASSWORD  = process.env.SITE_PASSWORD  || 'dollars';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ikebukuro';
@@ -435,6 +650,11 @@ io.on('connection', (socket) => {
     stmts.insertMessage.run(socket.currentRoom, socket.username, sanitized);
     const msg = { room: socket.currentRoom, user: socket.username, text: sanitized, timestamp: Math.floor(now / 1000) };
     io.to('chat:' + socket.currentRoom).emit('message', msg);
+
+    // AI persona responses (only to real users, not other AI characters)
+    if (!AI_USERNAMES.has(socket.username)) {
+      maybeTriggerAI(socket.currentRoom, sanitized, socket.username, 0);
+    }
   });
 
   socket.on('typing', () => {
@@ -480,14 +700,23 @@ async function broadcastRoomCounts() {
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log('\nDollars BBS is running!\n');
+  console.log('\n╔═══════════════════════════════════════╗');
+  console.log('║         DOLLARS BBS  v2.1             ║');
+  console.log('╚═══════════════════════════════════════╝\n');
   console.log(`  Local:   http://localhost:${PORT}`);
   const nets = os.networkInterfaces();
   for (const iface of Object.values(nets))
     for (const addr of iface)
       if (addr.family === 'IPv4' && !addr.internal)
         console.log(`  Network: http://${addr.address}:${PORT}`);
-  console.log(`\nPassword: ${SITE_PASSWORD}`);
-  console.log(`Admin pw: ${ADMIN_PASSWORD}`);
-  console.log('Share the Network URL with other devices on the same network.\n');
+  console.log(`\n  Password: ${SITE_PASSWORD}`);
+  console.log(`  Admin pw: ${ADMIN_PASSWORD}`);
+  if (!anthropic) {
+    console.log('\n  ─── AI Personas ───────────────────────');
+    console.log('  To enable AI characters in chat:');
+    console.log('  1. Get a key: https://console.anthropic.com/');
+    console.log('  2. Run: ANTHROPIC_API_KEY=sk-ant-... npm start');
+    console.log('  ────────────────────────────────────────');
+  }
+  console.log('\nShare the Network URL with other devices on the same network.\n');
 });
