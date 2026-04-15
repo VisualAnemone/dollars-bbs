@@ -124,13 +124,78 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) updateTitleBadge();
 });
 
+// ── Boot sequence ─────────────────────────────────────────────────────────────
+const BOOT_LINES = [
+  { text: '> DOLLARS BBS NODE v2.1 — IKEBUKURO RELAY', status: null },
+  { text: '> LOADING SYSTEM KERNEL',                    status: 'ok'  },
+  { text: '> MOUNTING ENCRYPTED FILESYSTEM',            status: 'ok'  },
+  { text: '> TOR RELAY: JP ──► NL ──► US ──► JP',       status: 'ok'  },
+  { text: '> HANDSHAKE: SHA-384 VERIFIED',              status: 'ok'  },
+  { text: '> MEMBER DATABASE: 12,847 RECORDS',          status: null  },
+  { text: '> SCANNING FOR INTRUSION ATTEMPTS',          status: 'ok'  },
+  { text: '> ANONYMITY LAYER: ACTIVE',                  status: 'ok'  },
+  { text: '> AWAITING AUTHENTICATION',                  status: null  },
+];
+
+let bootDone = false;
+
+async function runBoot() {
+  const container = $('boot-seq-lines');
+  const cursor    = document.querySelector('.boot-cursor');
+  if (!container) return;
+
+  for (const line of BOOT_LINES) {
+    await new Promise(resolve => {
+      const div = document.createElement('div');
+      div.className = 'boot-line' + (line.status ? ' ' + line.status : '');
+      container.appendChild(div);
+
+      let i = 0;
+      const speed = line.status === 'ok' ? 18 : 28;
+      const iv = setInterval(() => {
+        div.textContent = line.text.slice(0, ++i);
+        if (i >= line.text.length) {
+          clearInterval(iv);
+          setTimeout(resolve, line.status ? 80 : 160);
+        }
+      }, speed);
+    });
+  }
+
+  await new Promise(r => setTimeout(r, 350));
+  if (cursor) cursor.style.display = 'none';
+  $('boot-sequence').classList.add('hidden');
+  $('login-form-wrap').classList.remove('hidden');
+  setTimeout(() => $('input-password').focus(), 50);
+  bootDone = true;
+}
+
+// ── Status bar ────────────────────────────────────────────────────────────────
+let totalMsgs = 0;
+
+function updateStatusBar(connected) {
+  const conn = $('sb-conn');
+  if (conn) {
+    conn.textContent = connected ? '■ CONN' : '□ DISC';
+    conn.classList.toggle('disconnected', !connected);
+  }
+}
+
+function tickStatusBar() {
+  const lat = $('sb-lat');
+  if (lat) lat.textContent = String(20 + Math.floor(Math.random() * 35));
+}
+
+setInterval(tickStatusBar, 4000);
+tickStatusBar();
+
 // ── Auth overlays ─────────────────────────────────────────────────────────────
 function showOverlay(name) {
   $('overlay-password').classList.toggle('hidden', name !== 'password');
   $('overlay-username').classList.toggle('hidden', name !== 'username');
   $('app').classList.add('hidden');
-  if (name === 'password') setTimeout(() => $('input-password').focus(), 50);
   if (name === 'username') setTimeout(() => $('input-username').focus(), 50);
+  // Password overlay: boot sequence handles the focus after it finishes
 }
 
 function showApp() {
@@ -191,6 +256,7 @@ function initSocket() {
   socket.on('connect', () => {
     socket.emit('join', { username });
     socket.emit('join_room', { room: currentRoom });
+    updateStatusBar(true);
   });
 
   socket.on('connect_error', (err) => {
@@ -206,6 +272,10 @@ function initSocket() {
   });
 
   socket.on('message', (msg) => {
+    totalMsgs++;
+    const sbm = $('sb-msgs');
+    if (sbm) sbm.textContent = totalMsgs;
+
     if (msg.room !== currentRoom) {
       markUnread(msg.room);
       return;
@@ -820,7 +890,20 @@ function logout() {
   localStorage.removeItem('username');
   localStorage.removeItem('isAdmin');
   token = ''; username = ''; isAdmin = false;
+  updateStatusBar(false);
+
+  // Reset boot sequence for re-display
+  const lines = $('boot-seq-lines');
+  const cursor = document.querySelector('.boot-cursor');
+  if (lines) lines.innerHTML = '';
+  if (cursor) cursor.style.display = '';
+  const bsWrap = $('boot-sequence');
+  const lfWrap = $('login-form-wrap');
+  if (bsWrap) bsWrap.classList.remove('hidden');
+  if (lfWrap) lfWrap.classList.add('hidden');
+
   showOverlay('password');
+  runBoot();
 }
 
 $('btn-logout').addEventListener('click', logout);
@@ -837,5 +920,7 @@ if (token && username) {
 } else if (token) {
   showOverlay('username');
 } else {
+  // Show password overlay with boot sequence animation
   showOverlay('password');
+  runBoot();
 }

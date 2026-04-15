@@ -17,23 +17,40 @@
 <!-- ══ OVERLAY: Password ═══════════════════════════════════════════════════ -->
 <div id="overlay-password" class="overlay">
   <div class="overlay-inner">
-    <div class="splash-logo">DOLLARS</div>
-    <div class="splash-sub">BBS // PRIVATE NETWORK</div>
-    <div class="splash-divider"></div>
-    <form id="form-password" class="auth-form">
-      <label class="auth-label">ENTER PASSWORD</label>
-      <input id="input-password" type="password" class="auth-input" placeholder="••••••••" autocomplete="off" spellcheck="false">
-      <button type="submit" class="auth-btn">ACCESS BBS</button>
-      <p id="password-error" class="auth-error hidden">// incorrect password</p>
-    </form>
-    <div class="splash-footer">DOLLARS v2.1 &nbsp;·&nbsp; IKEBUKURO</div>
+
+    <!-- Boot sequence (shown first, replaced by login form) -->
+    <div id="boot-sequence" class="boot-seq">
+      <div id="boot-seq-lines"></div>
+      <span class="boot-cursor">_</span>
+    </div>
+
+    <!-- Login form (hidden until boot completes) -->
+    <div id="login-form-wrap" class="hidden">
+      <pre class="splash-frame">╔═══════════════════════════════════════╗
+║  PRIVATE NETWORK  //  IKEBUKURO NODE  ║
+╚═══════════════════════════════════════╝</pre>
+      <div class="splash-logo" data-text="DOLLARS">DOLLARS</div>
+      <div class="splash-sub">BBS // SECURE CHANNEL v2.1</div>
+      <div class="splash-divider"></div>
+      <form id="form-password" class="auth-form">
+        <label class="auth-label">ENTER PASSWORD</label>
+        <input id="input-password" type="password" class="auth-input" placeholder="••••••••" autocomplete="off" spellcheck="false">
+        <button type="submit" class="auth-btn">ACCESS BBS</button>
+        <p id="password-error" class="auth-error hidden">// incorrect password</p>
+      </form>
+      <div class="splash-footer">DOLLARS v2.1 &nbsp;·&nbsp; IKEBUKURO &nbsp;·&nbsp; MEMBERS: 12,847</div>
+    </div>
+
   </div>
 </div>
 
 <!-- ══ OVERLAY: Username ═══════════════════════════════════════════════════ -->
 <div id="overlay-username" class="overlay hidden">
   <div class="overlay-inner">
-    <div class="splash-logo">DOLLARS</div>
+    <pre class="splash-frame">╔═══════════════════════════════════════╗
+║  PRIVATE NETWORK  //  IKEBUKURO NODE  ║
+╚═══════════════════════════════════════╝</pre>
+    <div class="splash-logo" data-text="DOLLARS">DOLLARS</div>
     <div class="splash-sub">IDENTIFY YOURSELF</div>
     <div class="splash-divider"></div>
     <form id="form-username" class="auth-form">
@@ -263,7 +280,25 @@
     </div>
   </div>
 
+  <!-- Status bar -->
+  <div id="status-bar">
+    <span id="sb-conn" class="sb-conn">■ CONN</span>
+    <span class="sb-sep">│</span>
+    <span>NODE: JP-IKB-01</span>
+    <span class="sb-sep">│</span>
+    <span>LAT: <span id="sb-lat">--</span>ms</span>
+    <span class="sb-sep">│</span>
+    <span>SIG: <span class="sb-sig">████▓░</span></span>
+    <span class="sb-sep">│</span>
+    <span>MSG: <span id="sb-msgs">0</span></span>
+    <span class="sb-sep">│</span>
+    <span id="sb-ai" class="sb-ai-off">AI: OFF</span>
+  </div>
+
 </div><!-- #app -->
+
+<!-- CRT overlay (scanlines + vignette) -->
+<div id="crt-overlay" aria-hidden="true"></div>
 
 <!-- ══ SEARCH OVERLAY ══════════════════════════════════════════════════════ -->
 <div id="search-overlay" class="search-overlay hidden">
