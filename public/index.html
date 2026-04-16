@@ -18,19 +18,17 @@
 <div id="overlay-password" class="overlay">
   <div class="overlay-inner">
 
-    <!-- Boot sequence (shown first, replaced by login form) -->
     <div id="boot-sequence" class="boot-seq">
       <div id="boot-seq-lines"></div>
       <span class="boot-cursor">_</span>
     </div>
 
-    <!-- Login form (hidden until boot completes) -->
     <div id="login-form-wrap" class="hidden">
       <pre class="splash-frame">╔═══════════════════════════════════════╗
 ║  PRIVATE NETWORK  //  IKEBUKURO NODE  ║
 ╚═══════════════════════════════════════╝</pre>
       <div class="splash-logo" data-text="DOLLARS">DOLLARS</div>
-      <div class="splash-sub">BBS // SECURE CHANNEL v2.1</div>
+      <div class="splash-sub">BBS // SECURE CHANNEL v3.0</div>
       <div class="splash-divider"></div>
       <form id="form-password" class="auth-form">
         <label class="auth-label">ENTER PASSWORD</label>
@@ -38,15 +36,15 @@
         <button type="submit" class="auth-btn">ACCESS BBS</button>
         <p id="password-error" class="auth-error hidden">// incorrect password</p>
       </form>
-      <div class="splash-footer">DOLLARS v2.1 &nbsp;·&nbsp; IKEBUKURO &nbsp;·&nbsp; MEMBERS: 12,847</div>
+      <div class="splash-footer">DOLLARS v3.0 &nbsp;·&nbsp; IKEBUKURO &nbsp;·&nbsp; MEMBERS: 12,847</div>
     </div>
 
   </div>
 </div>
 
-<!-- ══ OVERLAY: Username ═══════════════════════════════════════════════════ -->
+<!-- ══ OVERLAY: Username + Faction ═════════════════════════════════════════ -->
 <div id="overlay-username" class="overlay hidden">
-  <div class="overlay-inner">
+  <div class="overlay-inner wide">
     <pre class="splash-frame">╔═══════════════════════════════════════╗
 ║  PRIVATE NETWORK  //  IKEBUKURO NODE  ║
 ╚═══════════════════════════════════════╝</pre>
@@ -56,36 +54,79 @@
     <form id="form-username" class="auth-form">
       <label class="auth-label">CHOOSE A HANDLE</label>
       <input id="input-username" type="text" class="auth-input" placeholder="anonymous" maxlength="24" autocomplete="off" spellcheck="false">
+
+      <label class="auth-label" style="margin-top:.6rem">PICK A COLOR (OR NONE)</label>
+      <div id="faction-picker" class="faction-picker">
+        <button type="button" class="faction-opt active" data-faction="colorless">
+          <span class="faction-swatch" style="background:#a0a0a0"></span>
+          <span>COLORLESS</span>
+          <span class="faction-desc">have no color. just a Dollar.</span>
+        </button>
+        <button type="button" class="faction-opt" data-faction="dollars">
+          <span class="faction-swatch" style="background:#00ff41"></span>
+          <span>DOLLARS</span>
+          <span class="faction-desc">we are everyone and no one.</span>
+        </button>
+        <button type="button" class="faction-opt" data-faction="yellow_scarves">
+          <span class="faction-swatch" style="background:#ffd60a"></span>
+          <span>YELLOW SCARVES</span>
+          <span class="faction-desc">legacy color. heavy meaning.</span>
+        </button>
+        <button type="button" class="faction-opt" data-faction="blue_squares">
+          <span class="faction-swatch" style="background:#4fc3ff"></span>
+          <span>BLUE SQUARES</span>
+          <span class="faction-desc">loud engines, louder voices.</span>
+        </button>
+      </div>
+
       <button type="submit" class="auth-btn">JOIN THE DOLLARS</button>
       <p id="username-error" class="auth-error hidden">// handle cannot be empty</p>
     </form>
-    <div class="splash-footer">your identity is yours alone</div>
+    <div class="splash-footer">your identity is yours alone. your color is, too.</div>
   </div>
 </div>
 
 <!-- ══ APP ══════════════════════════════════════════════════════════════════ -->
 <div id="app" class="hidden">
 
+  <!-- ── News ticker ─────────────────────────────────────────────────────── -->
+  <div id="news-ticker" class="news-ticker">
+    <div class="ticker-tag">// CITY FEED</div>
+    <div id="ticker-track" class="ticker-track">
+      <span class="ticker-item">> IKEBUKURO RELAY ONLINE</span>
+    </div>
+  </div>
+
   <!-- Header -->
   <header id="site-header">
     <button id="btn-sidebar-toggle" class="hdr-icon-btn mobile-only" aria-label="Toggle sidebar">☰</button>
     <div class="hdr-brand">
       <span class="hdr-logo">DOLLARS</span>
-      <span class="hdr-badge">BBS v2.1</span>
+      <span class="hdr-badge">BBS v3.0</span>
       <span class="hdr-live"><span class="live-dot"></span> LIVE</span>
     </div>
     <div class="hdr-stats">
-      <span class="hdr-stat"><span class="stat-icon">≡≡</span> 12,847 members</span>
+      <span class="hdr-stat"><span class="stat-icon">≡≡</span> <span id="stat-members">12,847</span> members</span>
       <span class="hdr-stat"><span class="live-dot sm"></span> <span id="stat-online">0</span> online</span>
       <span class="hdr-stat" id="stat-time">--:-- -- JST</span>
     </div>
     <div class="hdr-actions">
-      <button id="btn-search" class="hdr-icon-btn" title="Search posts">🔍</button>
+      <button id="btn-search" class="hdr-icon-btn" title="Search (⌘K)">🔍</button>
+      <button id="btn-dms" class="hdr-icon-btn" title="Whispers (⌘M)">
+        ✉<span id="dm-badge" class="hdr-badge-count hidden">0</span>
+      </button>
+      <button id="btn-notifs" class="hdr-icon-btn" title="Notifications">
+        🔔<span id="notif-badge" class="hdr-badge-count hidden">0</span>
+      </button>
+      <button id="btn-sound" class="hdr-icon-btn" title="Sound FX">🔈</button>
       <button id="btn-broadcast" class="hdr-action-btn">⚡ <span class="bc-label">BROADCAST</span></button>
       <span id="admin-badge" class="admin-badge hidden">ADMIN</span>
     </div>
     <div class="hdr-user">
-      User: <strong id="display-username">---</strong>
+      <span class="hdr-faction-chip" id="hdr-faction-chip"></span>
+      <button id="btn-profile-me" class="hdr-user-btn">
+        <strong id="display-username">---</strong>
+      </button>
       <button id="btn-logout" class="logout-btn">[logout]</button>
     </div>
   </header>
@@ -95,6 +136,8 @@
     <button class="tab-btn active" data-tab="chat"><span class="tab-dot"></span> LIVE CHAT</button>
     <button class="tab-btn" data-tab="forum">▣ FORUM</button>
     <button class="tab-btn" data-tab="sightings">👁 SIGHTINGS</button>
+    <button class="tab-btn" data-tab="map">⌖ MAP</button>
+    <button class="tab-btn" data-tab="members">≡ MEMBERS</button>
     <button class="tab-btn" data-tab="about">ABOUT</button>
   </nav>
 
@@ -137,6 +180,13 @@
 
         <div class="sidebar-heading" style="margin-top:1.25rem">ONLINE NOW:</div>
         <div id="online-users-list"></div>
+
+        <div class="sidebar-heading" style="margin-top:1.25rem">HINTS:</div>
+        <div class="sidebar-info small">
+          <p>type /help for commands</p>
+          <p>@handle to mention</p>
+          <p>click any name to see profile</p>
+        </div>
       </aside>
 
       <section class="main-area">
@@ -148,10 +198,15 @@
           <div id="chat-log"></div>
           <div id="typing-indicator" class="typing-indicator hidden"></div>
           <button id="scroll-to-bottom" class="scroll-btn hidden">▼ new messages</button>
+          <div id="reply-chip" class="reply-chip hidden">
+            <span id="reply-chip-text">replying to …</span>
+            <button id="btn-cancel-reply" class="reply-cancel">✕</button>
+          </div>
+          <div id="cmd-autocomplete" class="cmd-autocomplete hidden"></div>
         </div>
         <form id="form-chat" class="chat-bar">
           <span id="chat-name-chip">---</span>
-          <input id="chat-input" type="text" placeholder="say something to the Dollars..." maxlength="1000" autocomplete="off" spellcheck="false">
+          <input id="chat-input" type="text" placeholder="say something to the Dollars... (/help for commands)" maxlength="1000" autocomplete="off" spellcheck="false">
           <button type="submit" class="send-btn">&#x25BA;</button>
         </form>
       </section>
@@ -175,7 +230,6 @@
 
       <section class="main-area" id="forum-main">
 
-        <!-- View: Post list -->
         <div id="forum-view-list">
           <div class="area-header">
             <span id="board-title-display">&gt; MAIN BOARD</span>
@@ -184,7 +238,6 @@
           <div id="post-list"></div>
         </div>
 
-        <!-- View: New post -->
         <div id="forum-view-newpost" class="hidden">
           <div class="area-header">
             <button id="btn-cancel-post" class="back-btn">&#x2190; BACK</button>
@@ -192,17 +245,31 @@
           </div>
           <form id="form-new-post" class="post-compose">
             <input id="new-post-title" type="text" placeholder="title" maxlength="120" spellcheck="false">
-            <textarea id="new-post-content" placeholder="write something..." maxlength="4000" spellcheck="false" rows="10"></textarea>
+            <textarea id="new-post-content" placeholder="write something... (markdown-lite supported: **bold** *italic* `code` > quote)" maxlength="4000" spellcheck="false" rows="8"></textarea>
+
+            <label class="poll-toggle">
+              <input type="checkbox" id="new-post-poll-toggle"> attach a poll
+            </label>
+            <div id="poll-compose-wrap" class="hidden">
+              <input id="poll-question" type="text" placeholder="poll question" maxlength="120" spellcheck="false">
+              <div id="poll-options">
+                <input class="poll-option-input" type="text" placeholder="option 1" maxlength="40">
+                <input class="poll-option-input" type="text" placeholder="option 2" maxlength="40">
+                <input class="poll-option-input" type="text" placeholder="option 3 (optional)" maxlength="40">
+                <input class="poll-option-input" type="text" placeholder="option 4 (optional)" maxlength="40">
+              </div>
+            </div>
+
             <button type="submit" class="action-btn">POST TO BOARD</button>
           </form>
         </div>
 
-        <!-- View: Post detail -->
         <div id="forum-view-detail" class="hidden">
           <div class="area-header">
             <button id="btn-back-to-list" class="back-btn">&#x2190; BACK</button>
           </div>
           <article id="post-detail-body"></article>
+          <div id="poll-widget" class="poll-widget hidden"></div>
           <div id="reaction-bar" class="reaction-bar"></div>
           <div id="post-replies"></div>
           <form id="form-reply" class="reply-compose">
@@ -238,6 +305,9 @@
         <div id="sightings-compose" class="sighting-compose hidden">
           <form id="form-sighting">
             <textarea id="sighting-input" placeholder="describe what you saw..." maxlength="500" spellcheck="false" rows="3"></textarea>
+            <select id="sighting-location" class="sighting-location-sel">
+              <option value="">(no location)</option>
+            </select>
             <div class="sighting-compose-actions">
               <button type="submit" class="action-btn">POST</button>
               <button type="button" id="btn-cancel-sighting" class="back-btn">CANCEL</button>
@@ -247,6 +317,47 @@
         <div id="sightings-list" class="sightings-list"></div>
       </section>
 
+    </div>
+  </div>
+
+  <!-- ── TAB: Map ───────────────────────────────────────────────────────── -->
+  <div id="pane-map" class="pane hidden">
+    <div class="map-wrap">
+      <div class="map-top">
+        <div class="map-title">⌖ IKEBUKURO TACTICAL MAP</div>
+        <div class="map-sub">live sightings · dead drops · zone heat</div>
+      </div>
+      <div class="map-frame">
+        <svg id="map-svg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+        <div id="map-hover" class="map-hover hidden"></div>
+      </div>
+      <div id="map-detail" class="map-detail">
+        <div class="map-detail-header">
+          <span id="map-loc-name">select a location</span>
+          <button id="btn-drop-here" class="action-btn hidden">+ DROP HERE</button>
+        </div>
+        <div id="map-loc-body" class="map-detail-body">
+          <p class="map-empty">pick a zone above to see sightings + dead drops</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Members / Leaderboard ────────────────────────────────────── -->
+  <div id="pane-members" class="pane hidden">
+    <div class="members-wrap">
+      <div class="members-section">
+        <div class="area-header"><span>≡ TOP DOLLARS — KARMA LEADERBOARD</span></div>
+        <div id="leaderboard-list" class="leaderboard-list"></div>
+      </div>
+      <div class="members-section">
+        <div class="area-header"><span>FACTION BREAKDOWN</span></div>
+        <div id="faction-breakdown" class="faction-breakdown"></div>
+      </div>
+      <div class="members-section">
+        <div class="area-header"><span>ONLINE NOW</span></div>
+        <div id="members-online" class="members-online"></div>
+      </div>
     </div>
   </div>
 
@@ -265,16 +376,39 @@
           <p class="about-highlight">You were invited here.<br>That means you are already one of us.</p>
         </div>
       </div>
+      <div class="about-block">
+        <div class="about-header">&gt; FEATURES</div>
+        <div class="about-body">
+          <p><strong>live chat</strong> — four rooms, typing indicators, @mentions, replies, /commands</p>
+          <p><strong>forum</strong> — four boards, markdown-lite, reactions, polls, pinning</p>
+          <p><strong>whispers</strong> — 1-on-1 DMs with persistent history</p>
+          <p><strong>sightings</strong> — ephemeral 24hr feed of things noticed in the city</p>
+          <p><strong>map</strong> — ikebukuro tactical view with live pins + dead drops</p>
+          <p><strong>incidents</strong> — narrative events cascade through rooms when things happen</p>
+          <p><strong>broadcast</strong> — once per 24h, send a message to every connected Dollar</p>
+          <p><strong>ai personas</strong> — 9 characters from the series post ambiently (requires API key)</p>
+        </div>
+      </div>
       <div class="about-block about-stats-block">
         <div class="about-header">&gt; SYSTEM INFO</div>
         <div class="about-stats">
-          <div class="about-stat-row"><span class="asl">VERSION</span><span class="asv">Dollars BBS v2.1</span></div>
+          <div class="about-stat-row"><span class="asl">VERSION</span><span class="asv">Dollars BBS v3.0</span></div>
           <div class="about-stat-row"><span class="asl">LOCATION</span><span class="asv">Ikebukuro, Tokyo, Japan</span></div>
           <div class="about-stat-row"><span class="asl">MEMBERS</span><span class="asv">12,847 registered</span></div>
           <div class="about-stat-row"><span class="asl">ONLINE</span><span class="asv"><span id="about-online">0</span> now</span></div>
           <div class="about-stat-row"><span class="asl">STATUS</span><span class="asv asv-live">ACTIVE</span></div>
           <div class="about-stat-row"><span class="asl">TIME</span><span class="asv"><span id="about-time">--:-- JST</span></span></div>
           <div class="about-stat-row"><span class="asl">PASSWORD</span><span class="asv">known only to members</span></div>
+        </div>
+      </div>
+      <div class="about-block">
+        <div class="about-header">&gt; KEYBOARD SHORTCUTS</div>
+        <div class="about-body">
+          <p><strong>⌘K / Ctrl+K</strong> — search</p>
+          <p><strong>⌘M / Ctrl+M</strong> — whispers</p>
+          <p><strong>⌘/ / Ctrl+/</strong> — slash commands help</p>
+          <p><strong>esc</strong> — close overlays</p>
+          <p><strong>↑ in chat</strong> — edit last message (not supported yet, reserved)</p>
         </div>
       </div>
     </div>
@@ -293,12 +427,17 @@
     <span>MSG: <span id="sb-msgs">0</span></span>
     <span class="sb-sep">│</span>
     <span id="sb-ai" class="sb-ai-off">AI: OFF</span>
+    <span class="sb-sep">│</span>
+    <span id="sb-faction" class="sb-faction">COLOR: ---</span>
   </div>
 
 </div><!-- #app -->
 
-<!-- CRT overlay (scanlines + vignette) -->
+<!-- CRT overlay -->
 <div id="crt-overlay" aria-hidden="true"></div>
+
+<!-- Glitch overlay (used for incidents / broadcasts) -->
+<div id="glitch-overlay" aria-hidden="true"></div>
 
 <!-- ══ SEARCH OVERLAY ══════════════════════════════════════════════════════ -->
 <div id="search-overlay" class="search-overlay hidden">
@@ -312,7 +451,7 @@
   </div>
 </div>
 
-<!-- ══ BROADCAST COMPOSE MODAL ════════════════════════════════════════════ -->
+<!-- ══ BROADCAST COMPOSE ═════════════════════════════════════════════════ -->
 <div id="broadcast-modal" class="modal hidden">
   <div class="modal-inner">
     <div class="modal-header">⚡ BROADCAST TO ALL DOLLARS</div>
@@ -337,6 +476,112 @@
       <div id="broadcast-progress" class="broadcast-progress"></div>
     </div>
     <button id="btn-dismiss-broadcast" class="broadcast-dismiss">[ DISMISS ]</button>
+  </div>
+</div>
+
+<!-- ══ INCIDENT ALERT OVERLAY ═════════════════════════════════════════════ -->
+<div id="incident-overlay" class="incident-overlay hidden">
+  <div class="incident-inner">
+    <div class="incident-bar">
+      <span class="incident-warn">⚠ INCIDENT</span>
+      <span id="incident-kind" class="incident-kind"></span>
+    </div>
+    <div id="incident-title" class="incident-title"></div>
+    <div id="incident-body" class="incident-body"></div>
+    <div id="incident-loc" class="incident-loc"></div>
+    <button id="btn-dismiss-incident" class="broadcast-dismiss">[ DISMISS ]</button>
+  </div>
+</div>
+
+<!-- ══ DM PANEL ═══════════════════════════════════════════════════════════ -->
+<div id="dm-panel" class="dm-panel hidden">
+  <div class="dm-header">
+    <span class="dm-title">✉ WHISPERS</span>
+    <button id="btn-close-dms" class="back-btn">✕</button>
+  </div>
+  <div class="dm-body">
+    <div class="dm-sidebar">
+      <div class="dm-sidebar-top">
+        <input id="dm-new-user" type="text" class="dm-new-input" placeholder="new whisper to..." maxlength="24" spellcheck="false">
+      </div>
+      <div id="dm-convo-list" class="dm-convo-list"></div>
+    </div>
+    <div class="dm-main">
+      <div id="dm-thread-header" class="dm-thread-header">select a whisper</div>
+      <div id="dm-log" class="dm-log"></div>
+      <form id="form-dm" class="dm-composer hidden">
+        <input id="dm-input" type="text" class="dm-input" placeholder="whisper..." maxlength="1000" autocomplete="off" spellcheck="false">
+        <button type="submit" class="send-btn">&#x25BA;</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NOTIFICATIONS PANEL ════════════════════════════════════════════════ -->
+<div id="notif-panel" class="notif-panel hidden">
+  <div class="dm-header">
+    <span class="dm-title">🔔 NOTIFICATIONS</span>
+    <button id="btn-close-notifs" class="back-btn">✕</button>
+  </div>
+  <div id="notif-list" class="notif-list"></div>
+</div>
+
+<!-- ══ PROFILE MODAL ══════════════════════════════════════════════════════ -->
+<div id="profile-modal" class="modal hidden">
+  <div class="modal-inner profile-modal-inner">
+    <div class="profile-top">
+      <div class="profile-avatar" id="profile-avatar"></div>
+      <div class="profile-head">
+        <div class="profile-name-row">
+          <span id="profile-name">---</span>
+          <span id="profile-faction-chip" class="hdr-faction-chip"></span>
+        </div>
+        <div id="profile-status" class="profile-status"></div>
+      </div>
+      <button id="btn-close-profile" class="back-btn">✕</button>
+    </div>
+    <div id="profile-bio" class="profile-bio"></div>
+    <div class="profile-stats">
+      <div class="profile-stat"><span class="ps-label">KARMA</span><span class="ps-val" id="ps-karma">0</span></div>
+      <div class="profile-stat"><span class="ps-label">MESSAGES</span><span class="ps-val" id="ps-msgs">0</span></div>
+      <div class="profile-stat"><span class="ps-label">POSTS</span><span class="ps-val" id="ps-posts">0</span></div>
+      <div class="profile-stat"><span class="ps-label">SINCE</span><span class="ps-val" id="ps-since">--</span></div>
+      <div class="profile-stat"><span class="ps-label">SEEN</span><span class="ps-val" id="ps-seen">--</span></div>
+    </div>
+    <div class="profile-actions">
+      <button id="btn-profile-dm" class="action-btn">✉ WHISPER</button>
+      <button id="btn-profile-edit" class="action-btn hidden">✎ EDIT</button>
+    </div>
+    <div id="profile-edit-wrap" class="profile-edit-wrap hidden">
+      <label class="auth-label">STATUS</label>
+      <input id="profile-edit-status" type="text" class="auth-input" maxlength="80" placeholder="one-line status">
+      <label class="auth-label" style="margin-top:.6rem">BIO</label>
+      <textarea id="profile-edit-bio" class="auth-input" rows="3" maxlength="240" placeholder="tell the city about you..."></textarea>
+      <label class="auth-label" style="margin-top:.6rem">FACTION</label>
+      <select id="profile-edit-faction" class="auth-input">
+        <option value="colorless">COLORLESS</option>
+        <option value="dollars">DOLLARS</option>
+        <option value="yellow_scarves">YELLOW SCARVES</option>
+        <option value="blue_squares">BLUE SQUARES</option>
+      </select>
+      <div class="modal-actions" style="margin-top:.75rem">
+        <button id="btn-profile-save" class="action-btn">SAVE</button>
+        <button id="btn-profile-cancel" class="back-btn">CANCEL</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DROP COMPOSE ═══════════════════════════════════════════════════════ -->
+<div id="drop-modal" class="modal hidden">
+  <div class="modal-inner">
+    <div class="modal-header">✦ DEAD DROP AT <span id="drop-loc-label">---</span></div>
+    <div class="modal-note">// leave something for whoever visits next. expires in 24h.</div>
+    <textarea id="drop-input" class="modal-textarea" placeholder="leave a message for the next visitor..." maxlength="400" spellcheck="false" rows="4"></textarea>
+    <div class="modal-actions">
+      <button id="btn-send-drop" class="action-btn">LEAVE DROP</button>
+      <button id="btn-cancel-drop" class="back-btn">CANCEL</button>
+    </div>
   </div>
 </div>
 
