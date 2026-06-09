@@ -842,7 +842,7 @@ function switchTab(name) {
   if (name === 'members')   loadMembers();
 }
 
-document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => { if (b.dataset.tab) switchTab(b.dataset.tab); }));
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  BOARDS & POSTS
