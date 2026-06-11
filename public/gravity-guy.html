@@ -252,15 +252,6 @@ function startMusic() {
   }, 30);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  LEVEL SECTIONS — hand-designed chunks on a 5-lane grid.
-//  '#' platform · '.' empty · 'o' energy orb · '@' platform WITH an orb
-//  floating in its run zone (outer lanes only). Orbs trace the intended
-//  route through each section, so the level itself teaches the line.
-//  Every chunk keeps ceiling and floor solid for its first and last 2
-//  columns, so any chunk can follow any other.
-// ═══════════════════════════════════════════════════════════════════════════
-
 const COL = 60;
 const LANES = [
   { y: 0,   h: 70 },   // ceiling
@@ -269,150 +260,201 @@ const LANES = [
   { y: 360, h: 26 },   // low platform
   { y: 470, h: 70 },   // floor
 ];
-// where an orb sits for each lane: outer lanes in the run zone, mids mid-air
 const ORB_Y = [95, 153, 263, 373, 445];
 
-const T1 = [
-  { name: 'flat', rows: [
-    '##########',
-    '..........',
-    '..........',
-    '..........',
-    '##@@@@@@##'] },
-  { name: 'gapF', rows: [
-    '########@@@@####',
-    '.......o........',
-    '......o.........',
-    '.....o..........',
-    '######....######'] },
-  { name: 'gapC', rows: [
-    '######....######',
-    '.....o..........',
-    '......o.........',
-    '.......o........',
-    '########@@@@####'] },
-  { name: 'midstep', rows: [
-    '################',
-    '................',
-    '.....o####o.....',
-    '................',
-    '####........@@##'] },
-  { name: 'tunnelF', rows: [
-    '################',
-    '................',
-    '................',
-    '....########....',
-    '####@@@@@@@@####'] },
-  { name: 'deckA', rows: [
-    '####......########',
-    '....oo######......',
-    '..................',
-    '..................',
-    '############@@@@##'] },
-];
+// ═══════════════════════════════════════════════════════════════════════════
+//  LEVEL CONTENT — authored as motif families, proven by a physics solver
+//  (tools/leveldev): every beat and every composed passage is verified
+//  traversable at 450 & 660 px/s, from floor and ceiling entry, in both
+//  orientations, before shipping. '#' platform · 'o' orb · '@' orb-on-rail.
+//
+//  Passages are composed like phrases: family motif as an easy->hard
+//  crescendo (beats joined by connectors), resolved by an orb breather.
+//  Mirroring a passage vertically doubles the vocabulary.
+// ═══════════════════════════════════════════════════════════════════════════
 
-const T2 = [
-  { name: 'zigzagB', rows: [
-    '##########....##',
-    '................',
-    '...oo######.....',
-    '...o............',
-    '####......######'] },
-  { name: 'islands', rows: [
-    '##################',
-    '..................',
-    '...oo#####........',
-    '..........o#####..',
-    '#####..........###'] },
-  { name: 'longGapF', rows: [
-    '#######@@@@@@#####',
-    '......o...........',
-    '.....o............',
-    '....o.............',
-    '######........####'] },
-  { name: 'longGapC', rows: [
-    '######........####',
-    '....o.............',
-    '.....o............',
-    '......o...........',
-    '#######@@@@@@#####'] },
-  { name: 'corridor', rows: [
-    '##################',
-    '..............oo..',
-    '........oo####....',
-    '..oo####..........',
-    '######....########'] },
-  { name: 'steps', rows: [
-    '##################',
-    '...o####..........',
-    '.......o####......',
-    '...........o####..',
-    '##############@@##'] },
-];
-
-const T3 = [
-  { name: 'quickZig', rows: [
-    '########@@@@....##',
-    '.....o......o.....',
-    '....o........o....',
-    '...o..........o...',
-    '####....##########'] },
-  { name: 'snake', rows: [
-    '#############@@@@##',
-    '.....o######.......',
-    '....o..............',
-    '...o........######.',
-    '######......#######'] },
-  { name: 'gauntlet', rows: [
-    '##########....######',
-    '....................',
-    '...oo######.........',
-    '..o.........o.......',
-    '####......####@@####'] },
-  { name: 'leapfrog', rows: [
-    '#########@@@....##',
-    '.....o............',
-    '....o.............',
-    '...o..######......',
-    '####....##########'] },
-  { name: 'longHaul', rows: [
+const CHUNKS = {
+  runway: { name: 'runway', rows: [
     '############',
     '............',
     '............',
     '............',
+    '###@@@@@@###'] },
+  br1: { name: 'br1', rows: [
+    '########',
+    '........',
+    '........',
+    '........',
+    '##@@@@##'] },
+  br2: { name: 'br2', rows: [
+    '############',
+    '............',
+    '............',
+    '....o..o....',
     '##@@@@@@@@##'] },
+  br3: { name: 'br3', rows: [
+    '##@@@@@@##',
+    '..........',
+    '..........',
+    '..........',
+    '##########'] },
+  cn4: { name: 'cn4', rows: [
+    '####',
+    '....',
+    '....',
+    '....',
+    '####'] },
+  cn6: { name: 'cn6', rows: [
+    '######',
+    '......',
+    '......',
+    '......',
+    '##@@##'] },
+  g1: { name: 'g1', rows: [
+    '#######@@@@#####',
+    '......o.........',
+    '.....o..........',
+    '....o...........',
+    '#####....#######'] },
+  g2: { name: 'g2', rows: [
+    '########@@@@@@@#####',
+    '......o.............',
+    '.....o..............',
+    '....o...............',
+    '#####.......########'] },
+  g3: { name: 'g3', rows: [
+    '##########@@@@........##',
+    '......o........o........',
+    '.....o..........o.......',
+    '....o............o......',
+    '#####....##########@@@@#'] },
+  s1: { name: 's1', rows: [
+    '##################',
+    '...o####..........',
+    '..................',
+    '.........o........',
+    '############@@@@##'] },
+  s2: { name: 's2', rows: [
+    '######################',
+    '...o####..............',
+    '.......#####.o........',
+    '...........#####.o....',
+    '##################@@@#'] },
+  s3: { name: 's3', rows: [
+    '########..............##',
+    '...o####................',
+    '.......#####.o..........',
+    '....o......#####.o......',
+    '######..........###@@@@#'] },
+  ri1: { name: 'ri1', rows: [
+    '##################',
+    '..................',
+    '.....######.o.....',
+    '....o.........o...',
+    '######........#@@#'] },
+  ri2: { name: 'ri2', rows: [
+    '########################',
+    '........................',
+    '.....############.o.....',
+    '....o...........o#####..',
+    '######..............#@@#'] },
+  ri3: { name: 'ri3', rows: [
+    '############################',
+    '............................',
+    '.....########o.....o######..',
+    '....o........#######......o.',
+    '######....................##'] },
+  tn1: { name: 'tn1', rows: [
+    '##################',
+    '..................',
+    '..................',
+    '....##########....',
+    '#####@@@@@@@@#####'] },
+  tn2: { name: 'tn2', rows: [
+    '########@@@@@@########',
+    '......##########......',
+    '...o..............o...',
+    '......##########......',
+    '########@@@@@@########'] },
+  tn3: { name: 'tn3', rows: [
+    '####################@@@@##',
+    '...................o......',
+    '..................o.......',
+    '..o.############.o........',
+    '######@@@@@@@@##......####'] },
+  r1: { name: 'r1', rows: [
+    '#########@@@@#....######',
+    '.....o.......o..........',
+    '....o.........o.........',
+    '...o...........o........',
+    '####....###########@@@@#'] },
+  r2: { name: 'r2', rows: [
+    '#########@@@@#....############',
+    '.....o.......o...........o....',
+    '....o.........o.........o.....',
+    '...o...........o.......o......',
+    '####....###########@@@@#....##'] },
+  r3: { name: 'r3', rows: [
+    '########@@@@#...##############',
+    '.....o......o..........o......',
+    '....o........o........o.......',
+    '...o..........o......o........',
+    '####...##########@@@@#...#####'] },
+  ch1: { name: 'ch1', rows: [
+    '#############@@@@@######',
+    '........................',
+    '...o.#####.o............',
+    '..........o.#####.o.....',
+    '######@@@@@#############'] },
+  ch2: { name: 'ch2', rows: [
+    '#################@@@@#######',
+    '....######......######.o....',
+    '.........o.####.o...........',
+    '....######......######.o....',
+    '#####@@@@###################'] },
+};
+
+const FAMILIES = [
+  { name: 'gap', beats: ["g1", "g2", "g3"], tiers: [1, 2, 3] },
+  { name: 'stairs', beats: ["s1", "s2", "s3"], tiers: [1, 2, 3] },
+  { name: 'ride', beats: ["ri1", "ri2", "ri3"], tiers: [2, 3, 4] },
+  { name: 'tunnel', beats: ["tn1", "tn2", "tn3"], tiers: [2, 3, 4] },
+  { name: 'rhythm', beats: ["r1", "r2", "r3"], tiers: [2, 3, 4] },
+  { name: 'choice', beats: ["ch1", "ch2"], tiers: [3, 4] }
 ];
+const BREATHERS = ['br1', 'br2', 'br3'];
+const CONNECTORS = ['cn4', 'cn6'];
+const MAX_BEATS = [0, 1, 2, 2, 3];   // per tier
 
-const T4 = [
-  { name: 'pinball', rows: [
-    '######....##########',
-    '..............oo....',
-    '......oo######......',
-    '..oo######..........',
-    '##########....######'] },
-  { name: 'spiral', rows: [
-    '######....#######@@@##',
-    '.........o######......',
-    '.....o######..........',
-    '.o####................',
-    '######....############'] },
-  { name: 'tunnels', rows: [
-    '########@@@@########',
-    '......########......',
-    '....................',
-    '......########......',
-    '########@@@@########'] },
-  { name: 'doubleCross', rows: [
-    '########....########',
-    '.............oo.....',
-    '....########........',
-    '...o........########',
-    '######......########'] },
-];
+let plats, orbs, genX, queue, lastFamily;
 
-let plats, orbs, genX, lastChunkName, lastWasHard;
+const curTier = () => Math.min(4, 1 + Math.floor(meters() / ZONE_LEN));
 
-function placeChunk(def, hard) {
+const mirCache = {};
+function mirrorDef(d) {
+  return mirCache[d.name] || (mirCache[d.name] = {
+    name: d.name + '_m',
+    rows: [d.rows[4], d.rows[3], d.rows[2], d.rows[1], d.rows[0]]
+  });
+}
+
+function composePassage() {
+  const tier = curTier();
+  const elig = FAMILIES.filter(f => f.tiers[0] <= tier && f.name !== lastFamily);
+  const fam = elig[(Math.random() * elig.length) | 0];
+  lastFamily = fam.name;
+  const avail = fam.beats.filter((b, i) => fam.tiers[i] <= tier);
+  const sel = avail.slice(-Math.min(avail.length, MAX_BEATS[tier]));
+  const out = [];
+  sel.forEach((b, i) => {
+    out.push(CHUNKS[b]);
+    if (i < sel.length - 1) out.push(CHUNKS[CONNECTORS[(Math.random() * CONNECTORS.length) | 0]]);
+  });
+  out.push(CHUNKS[BREATHERS[(Math.random() * BREATHERS.length) | 0]]);
+  return Math.random() < 0.5 ? out.map(mirrorDef) : out;
+}
+
+function placeChunk(def) {
   for (let lane = 0; lane < 5; lane++) {
     const row = def.rows[lane];
     let run = -1;
@@ -433,32 +475,17 @@ function placeChunk(def, hard) {
     }
   }
   genX += def.rows[0].length * COL;
-  lastChunkName = def.name;
-  lastWasHard = !!hard;
-}
-
-function pickChunk() {
-  const m = meters();
-  // breathe after hard sections so intensity comes in waves
-  if (lastWasHard && Math.random() < 0.4) {
-    return { def: Math.random() < 0.5 ? T1[0] : T3[4], hard: false };
-  }
-  let pool, hardPool = false;
-  if (m < 400)       pool = T1;
-  else if (m < 1000) pool = Math.random() < 0.35 ? T1 : T2;
-  else if (m < 2000) { hardPool = Math.random() >= 0.30; pool = hardPool ? T3 : T2; }
-  else               { hardPool = Math.random() >= 0.30; pool = hardPool ? T4 : T3; }
-  let def;
-  do { def = pool[(Math.random() * pool.length) | 0]; }
-  while (def.name === lastChunkName && pool.length > 1);
-  return { def, hard: hardPool && def.name !== 'longHaul' && def.name !== 'flat' };
 }
 
 function genAhead(limit) {
-  while (genX < limit) { const c = pickChunk(); placeChunk(c.def, c.hard); }
+  while (genX < limit) {
+    if (!queue.length) queue = composePassage();
+    placeChunk(queue.shift());
+  }
   while (plats.length && plats[0].x + plats[0].w < camX - 100) plats.shift();
   while (orbs.length && orbs[0].x < camX - 60) orbs.shift();
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  GAME STATE
@@ -504,8 +531,8 @@ const meters = () => Math.floor(dist / 40);
 function reset() {
   plats = []; orbs = [];
   genX = 0;
-  lastChunkName = ''; lastWasHard = false;
-  placeChunk(T1[0]); placeChunk(T1[0]); placeChunk(T1[0]);
+  queue = []; lastFamily = '';
+  placeChunk(CHUNKS.runway); placeChunk(CHUNKS.runway); placeChunk(CHUNKS.runway);
 
   camX = 0; speed = BASE_SPEED; elapsed = 0; dist = 0;
   nextMilestone = 100; zoneIdx = 0; zoneToast = 0; distPulse = 0;
