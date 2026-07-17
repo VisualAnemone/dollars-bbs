@@ -123,6 +123,7 @@
       </div>
       <div class="menu">
         <div class="menu-item"><b>[1]</b> SOLO RUN &nbsp;·&nbsp; outrun the cop &nbsp;·&nbsp; flip with <b>SPACE / W / ↑ / TAP</b></div>
+        <div class="menu-item"><b>[5]</b> DAILY RUN &nbsp;·&nbsp; one seeded track per day, same for everyone &nbsp;·&nbsp; race your <span style="color:#ffd60a">gold ghost</span></div>
         <div class="menu-item"><b>[2]</b>–<b>[4]</b> VERSUS, 2–4 RUNNERS &nbsp;·&nbsp; one keyboard &nbsp;·&nbsp; first to 5 rounds</div>
         <div class="menu-item">versus keys: <span class="p1c">P1 <b>[W]</b></span> &nbsp;<span class="p2c">P2 <b>[↑]</b></span> &nbsp;<span class="p3c">P3 <b>[B]</b></span> &nbsp;<span class="p4c">P4 <b>[I]</b></span> &nbsp;·&nbsp; touch: vertical screen slices</div>
       </div>
@@ -138,6 +139,7 @@
       <div class="ov-sub">DISTANCE</div>
       <div class="ov-score-big" id="dead-score">0m</div>
       <div class="ov-stats" id="dead-stats"></div>
+      <div class="ov-stats" id="dead-autopsy" style="opacity:.8"></div>
       <div class="ov-best" id="dead-best">BEST: 0m</div>
       <div class="ov-newrecord hidden" id="dead-record">★ NEW RECORD ★</div>
       <div class="ov-press">&gt; SPACE / TAP TO RETRY &lt;</div>
@@ -178,6 +180,13 @@ const ovTitle = $('ov-title'), ovDead = $('ov-dead'), ovPause = $('ov-pause'), o
 
 function fit() {
   const s = Math.min(innerWidth / W, innerHeight / H);
+  const dpr = typeof devicePixelRatio === 'number' ? Math.min(2, devicePixelRatio || 1) : 1;
+  const k = s * dpr;
+  if (Math.abs(cvs.width - Math.round(W * k)) > 1) {
+    cvs.width = Math.round(W * k);
+    cvs.height = Math.round(H * k);
+  }
+  ctx.setTransform(k, 0, 0, k, 0, 0);
   cvs.style.width  = Math.floor(W * s) + 'px';
   cvs.style.height = Math.floor(H * s) + 'px';
 }
@@ -187,6 +196,11 @@ fit();
 // ═══════════════════════════════════════════════════════════════════════════
 //  AUDIO — sfx bleeps + a tiny generative chiptune sequencer
 // ═══════════════════════════════════════════════════════════════════════════
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
+};
 
 let actx = null, muted = false;
 function audio() {
@@ -209,8 +223,9 @@ function tone(f0, f1, when, dur, type, vol) {
   o.start(when); o.stop(when + dur);
 }
 const beep = (f0, f1, dur, type, vol) => { if (audio()) tone(f0, f1, actx.currentTime, dur, type, vol); };
-const sfxFlip  = () => beep(240, 520, 0.09, 'square', 0.06);
-const sfxLand  = () => beep(140, 90, 0.06, 'triangle', 0.07);
+const rootHz = () => 110 * Math.pow(2, [0, 3, 5, 8][zoneIdx % 4] / 12);
+const sfxFlip  = () => { const r = rootHz(); beep(r * 2, r * 3, 0.09, 'square', 0.06); };
+const sfxLand  = () => { const r = rootHz(); beep(r, r * 0.75, 0.06, 'triangle', 0.07); };
 const sfxWall  = () => beep(110, 55, 0.12, 'sawtooth', 0.08);
 const sfxDeath = () => { beep(380, 40, 0.5, 'sawtooth', 0.1); beep(190, 30, 0.6, 'square', 0.07); };
 const sfxScore = () => beep(660, 990, 0.12, 'square', 0.045);
@@ -219,7 +234,9 @@ const sfxCount = () => beep(440, 440, 0.1, 'square', 0.06);
 const sfxGo    = () => beep(880, 1320, 0.22, 'square', 0.07);
 const sfxSiren = hi => beep(hi ? 784 : 588, hi ? 784 : 588, 0.16, 'triangle', 0.035);
 const sfxOrb   = combo => {
-  const f = 587 * Math.pow(2, Math.min(combo, 12) / 12);
+  // climb the pentatonic in the current key
+  const c = Math.min(combo, 14);
+  const f = rootHz() * 2 * Math.pow(2, (SCALE[c % SCALE.length] + 12 * (1 + (c / SCALE.length | 0))) / 12);
   beep(f, f * 1.02, 0.09, 'square', 0.05);
 };
 
@@ -228,18 +245,28 @@ const SCALE = [0, 3, 5, 7, 10];
 const BASS_STEPS = [1,0,0,1, 0,0,1,0, 0,0,1,0, 1,0,0,0];
 const STEP = 60 / 138 / 4;
 let musicStarted = false, mStep = 0, mNext = 0;
+const DBASS = [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,1];
 function scheduleStep(i, t) {
-  const root = 110 * Math.pow(2, [0, 3, 5, 8][zoneIdx % 4] / 12);
-  if (BASS_STEPS[i % 16]) {
+  const root = rootHz();
+  if (musicMode === 'dead') {          // funeral tail under the BUSTED screen
+    if (i % 8 === 0) tone(root / 2, root / 2, t, 0.5, 'triangle', 0.04);
+    return;
+  }
+  const tense = musicMode === 'surge' || musicMode === 'overtime';
+  if ((tense ? DBASS : BASS_STEPS)[i % 16]) {
     const f = (i % 32) < 16 ? root : root * 1.335;
     tone(f, f, t, 0.18, 'square', 0.045);
   }
   const bar = (i / 16) | 0;
-  if (hash(i * 0.37 + bar * 3.1) > 0.52) {
+  if (hash(i * 0.37 + bar * 3.1) > (tense ? 0.68 : 0.52)) {
     const f = root * 2 * Math.pow(2, SCALE[(hash(i * 1.13 + bar) * SCALE.length) | 0] / 12);
     tone(f, f, t, 0.11, 'square', 0.016);
   }
-  if (i % 2 === 1) tone(6200, 5800, t, 0.03, 'square', 0.012);
+  if (musicMode === 'final' || musicMode === 'overdrive') {   // third voice: the climb
+    const f = root * 4 * Math.pow(2, SCALE[i % SCALE.length] / 12);
+    tone(f, f, t, 0.08, 'square', 0.011);
+  }
+  if (i % 2 === 1) tone(6200, 5800, t, 0.03, 'square', tense ? 0.02 : 0.012);
 }
 function startMusic() {
   if (musicStarted || !actx) return;
@@ -247,7 +274,10 @@ function startMusic() {
   mNext = actx.currentTime + 0.1;
   setInterval(() => {
     if (!actx) return;
-    if (muted || state === 'paused') { mNext = Math.max(mNext, actx.currentTime + 0.05); return; }
+    mNext = Math.max(mNext, actx.currentTime);   // never burst missed steps
+    if (muted || state === 'paused' || state === 'paused-cd' || document.hidden) {
+      mNext = actx.currentTime + 0.05; return;
+    }
     while (mNext < actx.currentTime + 0.15) { scheduleStep(mStep++, mNext); mNext += STEP; }
   }, 30);
 }
@@ -427,6 +457,7 @@ const CONNECTORS = ['cn4', 'cn6'];
 const MAX_BEATS = [0, 1, 2, 2, 3];   // per tier
 
 let plats, orbs, genX, queue, lastFamily;
+const laneEnd = [-9, -9, -9, -9, -9];
 
 const curTier = () => Math.min(4, 1 + Math.floor(meters() / ZONE_LEN));
 
@@ -441,17 +472,17 @@ function mirrorDef(d) {
 function composePassage() {
   const tier = curTier();
   const elig = FAMILIES.filter(f => f.tiers[0] <= tier && f.name !== lastFamily);
-  const fam = elig[(Math.random() * elig.length) | 0];
+  const fam = elig[(rng() * elig.length) | 0];
   lastFamily = fam.name;
   const avail = fam.beats.filter((b, i) => fam.tiers[i] <= tier);
   const sel = avail.slice(-Math.min(avail.length, MAX_BEATS[tier]));
   const out = [];
   sel.forEach((b, i) => {
     out.push(CHUNKS[b]);
-    if (i < sel.length - 1) out.push(CHUNKS[CONNECTORS[(Math.random() * CONNECTORS.length) | 0]]);
+    if (i < sel.length - 1) out.push(CHUNKS[CONNECTORS[(rng() * CONNECTORS.length) | 0]]);
   });
-  out.push(CHUNKS[BREATHERS[(Math.random() * BREATHERS.length) | 0]]);
-  return Math.random() < 0.5 ? out.map(mirrorDef) : out;
+  out.push(CHUNKS[BREATHERS[(rng() * BREATHERS.length) | 0]]);
+  return rng() < 0.5 ? out.map(mirrorDef) : out;
 }
 
 function placeChunk(def) {
@@ -466,10 +497,13 @@ function placeChunk(def) {
       }
       if (solid && run < 0) run = c;
       else if (!solid && run >= 0) {
+        const x = genX + run * COL;
         plats.push({
-          x: genX + run * COL, w: (c - run) * COL,
-          y: LANES[lane].y, h: LANES[lane].h, lane
+          x, w: (c - run) * COL,
+          y: LANES[lane].y, h: LANES[lane].h, lane,
+          flushLeft: Math.abs(laneEnd[lane] - x) < 0.5
         });
+        laneEnd[lane] = x + (c - run) * COL;
         run = -1;
       }
     }
@@ -511,7 +545,45 @@ let camX, speed, elapsed, dist, nextMilestone;
 let deadAt = 0, shake = 0, hitstop = 0, dying = 0;
 let zoneIdx = 0, zoneToast = 0, distPulse = 0;
 let cdT = 0, cdStage = -1;
-let best = +(localStorage.getItem('dollars_gg_best') || 0);
+let best = +(store.get('dollars_gg_best') || 0);
+let bestStyle = +(store.get('dollars_gg_style') || 0);
+
+// seeded rng: daily runs share one track per calendar day
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const todayStr = () => new Date().toISOString().slice(0, 10);
+function dateSeed() {
+  let h = 2166136261;
+  for (const c of todayStr()) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return h >>> 0;
+}
+let rng = Math.random;
+let daily = false;
+function dailyData() {
+  try { const d = JSON.parse(store.get('dollars_gg_daily') || 'null'); return d && d.date === todayStr() ? d : null; }
+  catch (e) { return null; }
+}
+function profile() {
+  try { return JSON.parse(store.get('dollars_gg_profile') || 'null') || { runs: 0, totalM: 0, last10: [] }; }
+  catch (e) { return { runs: 0, totalM: 0, last10: [] }; }
+}
+
+// style & drama state
+let style = 0, lastFlipM = 0, overdrive = false;
+let surgeT = 0, surgePend = 0, surgeCd = 0;
+let musicMode = 'normal';
+let newTerritory = false;
+let ghostRec = [], nextGhost = 0, ghostStr = '', dailyBest = 0;
+let floaters = [], banner = null;
+const otAdvance = () => (mode === 'versus' && elapsed > 40) ? Math.min(160, (elapsed - 40) * 5) : 0;
+function addFloater(text, x, y, color) { floaters.push({ text, x, y, t: 0, color }); }
+function setBanner(text, color) { banner = { text, t: 2.2, color }; }
 let players, particles, streaks, copHist;
 let wins = [], roundsPlayed = 0;
 let runFlips = 0, orbCount = 0, orbCombo = 0, lastOrbAt = -9;
@@ -520,7 +592,8 @@ let deathStats = null, sirenT = 0, sirenHi = false;
 function mkPlayer(i, homeX) {
   return {
     x: homeX, y: 0, w: 26, h: 34, vy: 0, dir: 1,
-    grounded: true, coyote: 0, angle: 0, legPhase: 0, squash: 0, flame: 0,
+    grounded: true, coyote: 0, angle: 0, legPhase: 0, squash: 0, flame: 0, flipBuf: 0,
+    chain: 0, lastOrbAt: -9,
     alive: true, deadT: 0, spin: 0, spinV: 0, wasBlocked: false,
     color: P_COLORS[i], homeX, trail: []
   };
@@ -546,7 +619,19 @@ function reset() {
   }
   for (const p of players) p.y = LANES[4].y - p.h;
 
-  particles = []; streaks = []; copHist = [];
+  particles = []; streaks = []; copHist = []; floaters = []; banner = null;
+  laneEnd.fill(-9);
+
+  rng = daily ? mulberry32(dateSeed()) : Math.random;
+  style = 0; lastFlipM = 0; overdrive = false;
+  surgeT = 0; surgePend = 0; surgeCd = 0;
+  musicMode = 'normal';
+  palT = 1; palPrevIdx = 0;
+  newTerritory = false;
+  ghostRec = []; nextGhost = 0;
+  const dd = daily ? dailyData() : null;
+  ghostStr = dd && dd.ghost ? dd.ghost : '';
+  dailyBest = dd ? dd.best : 0;
 }
 
 function beginCountdown() {
@@ -557,8 +642,9 @@ function beginCountdown() {
   ovRound.classList.add('hidden');
 }
 
-function start(m, n) {
+function start(m, n, isDaily) {
   mode = m;
+  daily = m === 'solo' && !!isDaily;
   nPlayers = m === 'versus' ? n : 1;
   if (m === 'versus') { wins = new Array(nPlayers).fill(0); roundsPlayed = 0; }
   reset();
@@ -576,18 +662,56 @@ function fmtTime(s) {
   return m + ':' + ss;
 }
 
+const CAUSES = {
+  cop: 'THE COP CLOSED IN',
+  wall: 'A WALL FED YOU TO THE COP',
+  pit: 'YOU FELL INTO THE VOID',
+  sky: 'YOU DRIFTED INTO THE SKY',
+};
+
 function soloDeathOverlay() {
   state = 'dead';
   deadAt = performance.now();
   const m = meters();
-  const record = m > best;
-  if (record) { best = m; localStorage.setItem('dollars_gg_best', best); }
+
+  // lifetime profile
+  const pr = profile();
+  pr.runs++; pr.totalM += m;
+  pr.last10.push(m); if (pr.last10.length > 10) pr.last10.shift();
+  store.set('dollars_gg_profile', JSON.stringify(pr));
+  if (deathStats.style > bestStyle) { bestStyle = deathStats.style; store.set('dollars_gg_style', bestStyle); }
+
+  let record, target, attempts = 0;
+  if (daily) {
+    const dd = dailyData() || { date: todayStr(), best: 0, attempts: 0, ghost: '' };
+    dd.attempts++;
+    attempts = dd.attempts;
+    record = m > dd.best;
+    if (record) { dd.best = m; dd.ghost = ghostRec.join(''); }
+    store.set('dollars_gg_daily', JSON.stringify(dd));
+    target = dd.best;
+    if (m > best) { best = m; store.set('dollars_gg_best', best); }
+  } else {
+    record = m > best;
+    if (record) { best = m; store.set('dollars_gg_best', best); }
+    target = best;
+  }
+
   $('dead-score').textContent = m + 'm';
   $('dead-stats').textContent =
     'TIME ' + fmtTime(deathStats.time) + ' · FLIPS ' + deathStats.flips +
-    ' · ORBS ' + deathStats.orbs + ' · TOP SPEED ' + Math.round(deathStats.spd) +
+    ' · ORBS ' + deathStats.orbs + ' · STYLE ' + deathStats.style +
     ' · SECTOR ' + String(zoneIdx + 1).padStart(2, '0');
-  $('dead-best').textContent = 'BEST: ' + best + 'm';
+  const gap = record ? '' :
+    ' — ' + Math.max(0, ((m / target) * 100) | 0) + '% OF BEST, ' + (target - m) + 'm SHORT';
+  const avg = pr.last10.length >= 3
+    ? ' · AVG LAST ' + pr.last10.length + ': ' + (pr.last10.reduce((a, b) => a + b, 0) / pr.last10.length | 0) + 'm'
+    : '';
+  $('dead-autopsy').textContent =
+    CAUSES[deathStats.cause] + gap + avg +
+    ' · LIFETIME ' + (pr.totalM / 1000).toFixed(1) + 'km' +
+    (daily ? ' · DAILY ATTEMPT #' + attempts : '');
+  $('dead-best').textContent = (daily ? 'TODAY: ' : 'BEST: ') + target + 'm';
   $('dead-record').classList.toggle('hidden', !record);
   ovDead.classList.remove('hidden');
 }
@@ -675,7 +799,8 @@ function updateParticles(dt) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function flip(p) {
-  if (!p || !p.alive || (!p.grounded && p.coyote <= 0)) return;
+  if (!p || !p.alive || dying > 0) return;
+  if (!p.grounded && p.coyote <= 0) { p.flipBuf = 0.12; return; }  // buffer early taps
   p.dir = -p.dir;
   p.vy = 170 * p.dir;
   p.grounded = false;
@@ -683,20 +808,25 @@ function flip(p) {
   p.squash = -0.28;
   p.flame = 0.25;
   runFlips++;
+  lastFlipM = meters();
   puff(p.x + p.w / 2, p.dir > 0 ? p.y : p.y + p.h, p.dir > 0, p.color);
   sfxFlip();
 }
 
+function showTitle() {
+  state = 'title';
+  ovDead.classList.add('hidden');
+  ovRound.classList.add('hidden');
+  ovTitle.classList.remove('hidden');
+  $('title-best').textContent = best > 0 ? 'BEST RUN: ' + best + 'm' : '';
+}
+
 function anyAction() {
   audio();
-  if (state === 'dead' && performance.now() - deadAt > 450) start('solo', 1);
+  if (state === 'dead' && performance.now() - deadAt > 450) start(mode, nPlayers, daily);
   else if (state === 'roundover' && performance.now() - deadAt > 450) nextRound();
-  else if (state === 'matchover' && performance.now() - deadAt > 450) {
-    state = 'title';
-    ovRound.classList.add('hidden');
-    ovTitle.classList.remove('hidden');
-  }
-  else if (state === 'paused') togglePause();
+  else if (state === 'matchover' && performance.now() - deadAt > 450) showTitle();
+  else if (state === 'paused' || state === 'paused-cd') togglePause();
 }
 
 function togglePause() {
@@ -718,7 +848,8 @@ addEventListener('keydown', e => {
 
   if (state === 'title') {
     audio();
-    if (c === 'Digit2' || c === 'Numpad2') { e.preventDefault(); start('versus', 2); }
+    if (c === 'Digit5' || c === 'Numpad5' || c === 'KeyD') { e.preventDefault(); start('solo', 1, true); }
+    else if (c === 'Digit2' || c === 'Numpad2') { e.preventDefault(); start('versus', 2); }
     else if (c === 'Digit3' || c === 'Numpad3') { e.preventDefault(); start('versus', 3); }
     else if (c === 'Digit4' || c === 'Numpad4') { e.preventDefault(); start('versus', 4); }
     else if (c === 'Digit1' || c === 'Numpad1' || c === 'Space' || c === 'KeyW' || c === 'ArrowUp' || c === 'Enter') {
@@ -736,7 +867,13 @@ addEventListener('keydown', e => {
     }
     return;
   }
-  if (c === 'Space' || c === 'KeyW' || c === 'ArrowUp' || c === 'Enter' || c.startsWith('Digit')) {
+  if (state === 'dead' && performance.now() - deadAt > 450) {
+    if (c === 'Digit2' || c === 'Digit3' || c === 'Digit4') { e.preventDefault(); start('versus', +c.slice(5)); return; }
+    if (c === 'Digit1') { e.preventDefault(); start('solo', 1); return; }
+    if (c === 'Backspace') { e.preventDefault(); showTitle(); return; }
+  }
+  if (c === 'Space' || c === 'KeyW' || c === 'ArrowUp' || c === 'Enter' ||
+      c === 'KeyB' || c === 'KeyI' || c.startsWith('Digit')) {
     e.preventDefault();
     anyAction();
   }
@@ -803,17 +940,23 @@ function updatePlayer(p, dt) {
       p.squash = 0.3;
       sfxLand();
       puff(p.x + p.w / 2, p.dir > 0 ? p.y + p.h : p.y, p.dir < 0, p.color);
+      if (p.flipBuf > 0) { p.flipBuf = 0; flip(p); }   // consume buffered tap
     }
   } else {
     p.coyote -= dt;
   }
+  p.flipBuf = Math.max(0, p.flipBuf - dt);
 
+  if (p.x < p.homeX) {
+    p.x = Math.min(p.homeX, p.x + (speed * 0.5 + 90) * dt);
+  }
   let blocked = false;
   for (const r of plats) {
     const overlapY = Math.min(p.y + p.h, r.y + r.h) - Math.max(p.y, r.y);
     if (overlapY <= 6) continue;
     const rsx = r.x - camX;
-    if (p.x + p.w > rsx && p.x < rsx) {
+    // catch shallow embedding too (fast frames can step past the face)
+    if (p.x + p.w > rsx && p.x < rsx + Math.min(40, r.w)) {
       p.x = rsx - p.w;
       blocked = true;
     }
@@ -822,28 +965,62 @@ function updatePlayer(p, dt) {
     sparks(p.x + p.w, p.y + p.h / 2);
     sfxWall();
     shake = Math.max(shake, 5);
+    p.chain = 0;
+    if (mode === 'solo') {
+      overdrive = false;
+      if (surgeCd <= 0) { surgePend = 1.1; surgeCd = 14; }   // the cop smells blood
+    }
   }
   p.wasBlocked = blocked;
-  if (!blocked && p.x < p.homeX) {
-    p.x = Math.min(p.homeX, p.x + (speed * 0.5 + 90) * dt);
-  }
 
-  if (p.x + p.w * 0.5 < KILL_X || p.y > H + 90 || p.y + p.h < -90) {
+  const killAt = mode === 'solo' ? COP_X + 16 : KILL_X + otAdvance();
+  if (p.x + p.w * 0.5 < killAt || p.y > H + 90 || p.y + p.h < -90) {
+    p.cause = p.y > H + 90 ? 'pit' : p.y + p.h < -90 ? 'sky' : (p.wasBlocked || p.x < p.homeX - 50 ? 'wall' : 'cop');
     killPlayer(p);
     return;
   }
 
-  // orbs
+  // orbs: chained pickups build style; a 10-chain ignites overdrive
   const pcx = camX + p.x + p.w / 2, pcy = p.y + p.h / 2;
   for (const o of orbs) {
     if (o.taken) continue;
     if (Math.abs(o.x - pcx) < 34 && Math.abs(o.y - pcy) < 36) {
       o.taken = true;
-      if (elapsed - lastOrbAt > 1.2) orbCombo = 0;
-      lastOrbAt = elapsed;
-      sfxOrb(orbCombo++);
-      orbCount++;
+      if (elapsed - p.lastOrbAt > 1.2) p.chain = 0;
+      p.chain++;
+      p.lastOrbAt = elapsed;
+      sfxOrb(p.chain);
       orbBurst(o.x - camX, o.y);
+      if (mode === 'solo') {
+        orbCount++;
+        style += 10 * Math.min(p.chain, 8) * (overdrive ? 2 : 1);
+        if (p.chain >= 10 && !overdrive) {
+          overdrive = true;
+          setBanner('OVERDRIVE', accent(1));
+          burst(p.x + p.w / 2, p.y + p.h / 2, 16, '#ffffff');
+        }
+      }
+    }
+  }
+
+  // wall grazes: threading a wall face within 14px is celebrated, not punished
+  for (const r of plats) {
+    if (r.flushLeft || r.grazed || r.w <= 30) continue;
+    const rsx = r.x - camX;
+    if (rsx <= p.x + p.w && rsx > p.x + p.w - speed * dt - 24) {
+      const below = p.y - (r.y + r.h), above = r.y - (p.y + p.h);
+      const clear = Math.max(below, above);
+      if (clear > 0 && clear < 14) {
+        r.grazed = true;
+        if (mode === 'solo') {
+          style += 25;
+          p.lastOrbAt = elapsed;   // grazes keep the chain alive
+          addFloater('CLOSE! +25', p.x + p.w + 8, p.y + p.h / 2, '#ffffff');
+        }
+        hitstop = Math.max(hitstop, 0.03);
+        burst(p.x + p.w, clear === below ? r.y + r.h : r.y, 8, '#ffffff');
+        beep(1240, 1860, 0.08, 'square', 0.05);
+      }
     }
   }
 
@@ -851,7 +1028,7 @@ function updatePlayer(p, dt) {
   p.angle += (targetAngle - p.angle) * Math.min(1, 14 * dt);
   if (p.grounded) p.legPhase += speed * dt * 0.055;
   p.squash *= Math.exp(-9 * dt);
-  p.flame = Math.max(0, p.flame - dt);
+  p.flame = Math.max(overdrive && mode === 'solo' ? 0.12 : 0, p.flame - dt);
 
   p.trail.push({ x: p.x, y: p.y, angle: p.angle });
   if (p.trail.length > 12) p.trail.shift();
@@ -886,10 +1063,70 @@ function update(dt) {
   if (meters() >= nextMilestone) { nextMilestone += 100; distPulse = 1; sfxScore(); }
   if (distPulse > 0) distPulse -= dt * 2.4;
   const z = Math.floor(meters() / ZONE_LEN);
-  if (z !== zoneIdx) { zoneIdx = z; zoneToast = 2.2; sfxZone(); }
+  if (z !== zoneIdx) {
+    palPrevIdx = zoneIdx; palT = 0;
+    zoneIdx = z; zoneToast = 2.2; sfxZone();
+    if (mode === 'solo' && surgeCd <= 0) { surgePend = 2.0; surgeCd = 10; }  // new sector, new heat
+  }
+  if (palT < 1) palT = Math.min(1, palT + dt * 2);
   if (zoneToast > 0) zoneToast -= dt;
 
+  // cop surge: pure theater — the kill line never moves
+  surgeCd -= dt;
+  if (surgePend > 0) {
+    surgePend -= dt;
+    if (surgePend <= 0 && mode === 'solo') surgeT = 2.8;
+  }
+  if (surgeT > 0) surgeT -= dt;
+
+  if (mode === 'solo') {
+    // steady streak: holding a line without flipping is its own risk
+    if (meters() - lastFlipM >= 75) {
+      lastFlipM += 75;
+      style += 40;
+      const p0 = players[0];
+      addFloater('STEADY +40', p0.x + p0.w + 8, p0.y - 8, accent(1));
+    }
+    // overdrive drought
+    if (overdrive && elapsed - players[0].lastOrbAt > 2) overdrive = false;
+    // crossing your best run's beacon
+    const target = daily ? dailyBest : best;
+    if (!newTerritory && target > 0 && meters() > target) {
+      newTerritory = true;
+      setBanner('NEW TERRITORY', '#ffd60a');
+      beep(880, 1320, 0.3, 'square', 0.06); beep(1100, 1650, 0.3, 'square', 0.05);
+      burst(players[0].x + 13, players[0].y + 17, 24, '#ffd60a');
+    }
+    // ghost sampling (daily only): distance-indexed, 2m stride
+    if (daily) {
+      const p0 = players[0];
+      while (dist >= nextGhost) {
+        ghostRec.push(String.fromCharCode(
+          Math.max(0, Math.min(255, p0.y / H * 255 | 0)) + (p0.dir > 0 ? 0 : 256)));
+        nextGhost += 80;
+      }
+    }
+  }
+
+  // music dramaturgy
+  musicMode = surgeT > 0 ? 'surge'
+    : otAdvance() > 0 ? 'overtime'
+    : overdrive ? 'overdrive'
+    : (mode === 'solo' && best > 0 && meters() > best * 0.9 && !daily) ? 'final'
+    : 'normal';
+
   genAhead(camX + W + 700);
+
+  if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; }
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i];
+    f.t += dt; f.y -= 26 * dt;
+    if (f.t > 0.9) floaters.splice(i, 1);
+  }
+  if (mode === 'versus' && elapsed > 40 && elapsed - dt <= 40) {
+    setBanner('OVERTIME — THE STATIC ADVANCES', '#ff4757');
+    sfxZone();
+  }
 
   for (const p of players) if (p.alive) updatePlayer(p, dt);
   updateDead(dt);
@@ -909,10 +1146,12 @@ function update(dt) {
   const aliveCount = players.filter(p => p.alive).length;
   const roundOver = mode === 'solo' ? aliveCount === 0 : aliveCount <= 1;
   if (roundOver) {
-    deathStats = { time: elapsed, flips: runFlips, orbs: orbCount, spd: speed };
+    deathStats = { time: elapsed, flips: runFlips, orbs: orbCount, spd: speed,
+                   style, cause: players.find(p => !p.alive)?.cause || 'cop' };
     dying = mode === 'solo' ? 0.95 : 0.6;
     hitstop = 0.07;
     shake = 14;
+    musicMode = 'dead';
     sfxDeath();
   }
 }
@@ -922,6 +1161,7 @@ function update(dt) {
 //  near-black playfield with white-hot edges, additive glow everywhere.
 // ═══════════════════════════════════════════════════════════════════════════
 
+const hex2rgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const PALS = [
   { name: 'MIDNIGHT',  acc: [84, 224, 255],  sky: ['#04070e', '#0b1626', '#050a12'],
     fog: ['#0c1524', '#091021', '#060b17'], moon: [200, 235, 255] },
@@ -932,8 +1172,27 @@ const PALS = [
   { name: 'AFTERGLOW', acc: [93, 255, 168],  sky: ['#03100a', '#0a2014', '#04120c'],
     fog: ['#0d2014', '#081710', '#050f0a'], moon: [210, 255, 225] },
 ];
-const pal = () => PALS[zoneIdx % PALS.length];
-const accent = a => { const z = pal().acc; return `rgba(${z[0]},${z[1]},${z[2]},${a})`; };
+for (const p of PALS) { p.skyRGB = p.sky.map(hex2rgb); p.fogRGB = p.fog.map(hex2rgb); }
+
+// crossfaded current palette, recomputed once per frame
+let palT = 1, palPrevIdx = 0;
+let CURPAL = PALS[0];
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t | 0);
+function computePal() {
+  const cur = PALS[zoneIdx % PALS.length];
+  if (palT >= 1) return cur;
+  const prev = PALS[palPrevIdx % PALS.length];
+  return {
+    name: cur.name,
+    acc: mix(prev.acc, cur.acc, palT),
+    moon: mix(prev.moon, cur.moon, palT),
+    skyRGB: cur.skyRGB.map((c, i) => mix(prev.skyRGB[i], c, palT)),
+    fogRGB: cur.fogRGB.map((c, i) => mix(prev.fogRGB[i], c, palT)),
+  };
+}
+const pal = () => CURPAL;
+const accent = a => { const z = CURPAL.acc; return `rgba(${z[0]},${z[1]},${z[2]},${a})`; };
+const rgbs = c => `rgb(${c[0]},${c[1]},${c[2]})`;
 
 const shadeCache = {};
 function shades(hex) {
@@ -1009,9 +1268,9 @@ function drawSkyline(layer, par, baseY, gap, color, t, windows) {
 function drawBG(t) {
   const P = pal();
   const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, P.sky[0]);
-  sky.addColorStop(0.52, P.sky[1]);
-  sky.addColorStop(1, P.sky[2]);
+  sky.addColorStop(0, rgbs(P.skyRGB[0]));
+  sky.addColorStop(0.52, rgbs(P.skyRGB[1]));
+  sky.addColorStop(1, rgbs(P.skyRGB[2]));
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
 
@@ -1051,9 +1310,9 @@ function drawBG(t) {
   ctx.beginPath(); ctx.arc(mx + 12, my + 48, 9, 0, Math.PI * 2); ctx.fill();
 
   // skyline layers, far → near, stepping out of the fog
-  drawSkyline(2, 0.05, H - 64, 96, P.fog[0], t, false);
-  drawSkyline(1, 0.12, H - 42, 74, P.fog[1], t, false);
-  drawSkyline(0, 0.26, H - 18, 58, P.fog[2], t, true);
+  drawSkyline(2, 0.05, H - 64, 96, rgbs(P.fogRGB[0]), t, false);
+  drawSkyline(1, 0.12, H - 42, 74, rgbs(P.fogRGB[1]), t, false);
+  drawSkyline(0, 0.26, H - 18, 58, rgbs(P.fogRGB[2]), t, true);
 
   // drifting dust motes
   ctx.save();
@@ -1114,7 +1373,6 @@ function drawChevrons(x, y, h) {
 
 function drawPlats(t) {
   const pulse = 0.82 + 0.18 * Math.sin(t / 320);
-  const flushEnds = new Set(plats.map(o => o.lane + ':' + (o.x + o.w)));
   for (const r of plats) {
     const x = r.x - camX;
     if (x + r.w < -10 || x > W + 10) continue;
@@ -1138,7 +1396,7 @@ function drawPlats(t) {
     }
 
     // chevron band on real leading walls only
-    if (r.w > 30 && !flushEnds.has(r.lane + ':' + r.x)) {
+    if (r.w > 30 && !r.flushLeft) {
       drawChevrons(x, r.y, r.h);
     }
 
@@ -1186,32 +1444,33 @@ function drawOrbs(t) {
 }
 
 function drawStaticWall(t) {
-  // the kill line: a sheet of red interference
-  const g = ctx.createLinearGradient(0, 0, KILL_X + 14, 0);
+  // the kill line: a sheet of red interference (advances in versus overtime)
+  const KX = KILL_X + otAdvance();
+  const g = ctx.createLinearGradient(0, 0, KX + 14, 0);
   g.addColorStop(0, 'rgba(255,52,70,0.22)');
   g.addColorStop(0.7, 'rgba(255,52,70,0.06)');
   g.addColorStop(1, 'rgba(255,52,70,0)');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, KILL_X + 14, H);
+  ctx.fillRect(0, 0, KX + 14, H);
   // drifting interference slivers
   ctx.fillStyle = 'rgba(255,170,180,0.10)';
   for (let i = 0; i < 14; i++) {
     const y = ((i * 247 + t * (0.5 + hash(i) * 0.7)) % (H + 80)) - 40;
-    const w = 3 + hash(i * 3.3) * (KILL_X - 8);
+    const w = 3 + hash(i * 3.3) * (KX - 8);
     ctx.fillRect(0, y, w, 1.6 + hash(i * 7) * 8);
   }
   // hot edge
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const eg = ctx.createLinearGradient(KILL_X - 8, 0, KILL_X + 6, 0);
+  const eg = ctx.createLinearGradient(KX - 8, 0, KX + 6, 0);
   eg.addColorStop(0, 'rgba(255,60,80,0)');
   eg.addColorStop(0.6, 'rgba(255,60,80,0.5)');
   eg.addColorStop(1, 'rgba(255,60,80,0)');
   ctx.fillStyle = eg;
-  ctx.fillRect(KILL_X - 8, 0, 14, H);
+  ctx.fillRect(KX - 8, 0, 14, H);
   ctx.restore();
   ctx.fillStyle = `rgba(255,210,215,${0.55 + 0.25 * Math.sin(t / 110)})`;
-  ctx.fillRect(KILL_X, 0, 1.5, H);
+  ctx.fillRect(KX, 0, 1.5, H);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1445,6 +1704,10 @@ function drawCop(t) {
   if (dying > 0 || state === 'dead') {
     const k = dying > 0 ? 1 - dying / 0.95 : 1;
     cx = COP_X + (players[0].x - 16 - COP_X) * (1 - Math.pow(1 - k, 3));
+  } else if (surgeT > 0) {
+    // the surge: he lunges at you and falls back — the kill line never moves
+    const k = Math.sin((1 - surgeT / 2.8) * Math.PI);
+    cx = COP_X + (players[0].x - 46 - COP_X) * Math.max(0, k);
   }
   const o = {
     x: cx, y: s.y, w: 26, h: 34, angle: s.angle, legPhase: s.legPhase,
@@ -1492,14 +1755,103 @@ function drawPlayers(t) {
 function drawDangerVignette(t) {
   if (mode !== 'solo' || state !== 'playing' || dying > 0) return;
   const p = players[0];
-  if (!p.alive || p.x >= 170) return;
-  const k = (170 - p.x) / 170;
+  if (!p.alive) return;
+  const surgeK = surgeT > 0 ? Math.sin((1 - surgeT / 2.8) * Math.PI) * 0.8 : 0;
+  if (p.x >= 170 && surgeK <= 0) return;
+  const k = Math.max(surgeK, (170 - Math.min(170, p.x)) / 170);
   const a = k * (0.26 + 0.1 * Math.sin(t / 80));
   const grad = ctx.createLinearGradient(0, 0, 260, 0);
   grad.addColorStop(0, `rgba(255,40,60,${a})`);
   grad.addColorStop(1, 'rgba(255,40,60,0)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 260, H);
+}
+
+function drawGate() {
+  // the next sector boundary is a place you can see coming
+  const nextZonePx = (zoneIdx + 1) * ZONE_LEN * 40 + 240;
+  const gx = nextZonePx - camX;
+  if (gx < -30 || gx > W + 40) return;
+  const nz = PALS[(zoneIdx + 1) % PALS.length].acc;
+  const na = a => `rgba(${nz[0]},${nz[1]},${nz[2]},${a})`;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createLinearGradient(gx - 18, 0, gx + 18, 0);
+  g.addColorStop(0, na(0));
+  g.addColorStop(0.5, na(0.15));
+  g.addColorStop(1, na(0));
+  ctx.fillStyle = g;
+  ctx.fillRect(gx - 18, 70, 36, H - 140);
+  ctx.restore();
+  ctx.fillStyle = na(0.75);
+  ctx.fillRect(gx - 1, 70, 2, H - 140);
+  ctx.fillStyle = na(0.9);
+  ctx.fillRect(gx - 6, 70, 12, 5);
+  ctx.fillRect(gx - 6, H - 75, 12, 5);
+}
+
+function drawBeacon() {
+  if (mode !== 'solo') return;
+  const target = daily ? dailyBest : best;
+  if (target <= 0 || newTerritory) return;
+  const bx = target * 40 + 240 - camX;
+  if (bx < -40 || bx > W + 60) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createLinearGradient(bx - 14, 0, bx + 14, 0);
+  g.addColorStop(0, 'rgba(255,214,10,0)');
+  g.addColorStop(0.5, 'rgba(255,214,10,0.16)');
+  g.addColorStop(1, 'rgba(255,214,10,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(bx - 14, 70, 28, H - 140);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,214,10,0.85)';
+  ctx.fillRect(bx - 1, 70, 2, H - 140);
+  ctx.textAlign = 'center';
+  ctx.font = '12px "Share Tech Mono", monospace';
+  ctx.fillText('BEST ' + target + 'm', bx, 62);
+  ctx.textAlign = 'left';
+}
+
+function drawGhost(t) {
+  // your gold self from today's best daily attempt
+  if (!daily || !ghostStr || state !== 'playing') return;
+  const idx = dist / 80;
+  const i0 = Math.floor(idx);
+  if (i0 + 1 >= ghostStr.length) return;
+  const dec = c => ({ y: (c & 255) / 255 * H, up: c >= 256 });
+  const a = dec(ghostStr.charCodeAt(i0)), b = dec(ghostStr.charCodeAt(i0 + 1));
+  const y = a.y + (b.y - a.y) * (idx - i0);
+  drawRunner({
+    x: players[0].homeX + 12, y, w: 26, h: 34,
+    angle: a.up ? Math.PI : 0, legPhase: dist * 0.05,
+    grounded: Math.abs(b.y - a.y) < 3, color: '#ffd60a',
+    alpha: 0.32, ghost: true, flame: 0
+  }, t);
+}
+
+function drawFloaters() {
+  ctx.textAlign = 'center';
+  ctx.font = '13px "Share Tech Mono", monospace';
+  for (const f of floaters) {
+    ctx.globalAlpha = Math.min(1, (0.9 - f.t) * 3);
+    ctx.fillStyle = f.color || '#ffffff';
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+  if (banner) {
+    ctx.globalAlpha = Math.min(1, banner.t);
+    ctx.textAlign = 'center';
+    ctx.font = '30px "Share Tech Mono", monospace';
+    ctx.fillStyle = banner.color || '#ffffff';
+    ctx.shadowColor = banner.color || '#ffffff';
+    ctx.shadowBlur = 14;
+    ctx.fillText(banner.text, W / 2, H / 2 - 100);
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+  }
 }
 
 function drawParticles() {
@@ -1545,6 +1897,12 @@ function drawHUD(t) {
     ctx.restore();
     ctx.fillStyle = 'rgba(240,250,255,0.75)';
     ctx.fillText(String(orbCount), 86, 34);
+    ctx.fillStyle = overdrive ? 'rgba(255,255,255,0.95)' : accent(0.6);
+    ctx.fillText('STYLE ' + style + (overdrive ? ' ×2' : ''), 62, 52);
+    if (daily) {
+      ctx.fillStyle = 'rgba(255,214,10,0.8)';
+      ctx.fillText('DAILY ' + todayStr(), 62, 70);
+    }
   } else {
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.fillText(wins.map((w, i) => 'P' + (i + 1) + ' ' + w).join(' · '), W / 2, 63);
@@ -1593,6 +1951,11 @@ function drawCountdown() {
   ctx.shadowBlur = 28;
   ctx.fillText(stage === 0 ? 'GO!' : String(stage), W / 2, H / 2 + 30);
   ctx.shadowBlur = 0;
+  if (daily) {
+    ctx.font = '16px "Share Tech Mono", monospace';
+    ctx.fillStyle = 'rgba(255,214,10,0.85)';
+    ctx.fillText('DAILY RUN — ' + todayStr() + (ghostStr ? ' — RACE YOUR GHOST' : ''), W / 2, H / 2 + 70);
+  }
   ctx.textAlign = 'left';
 }
 
@@ -1624,6 +1987,7 @@ function frame(t) {
   }
   updateParticles(dt);
 
+  CURPAL = computePal();
   ctx.save();
   if (shake > 0.3) {
     shake *= 0.88;
@@ -1631,14 +1995,18 @@ function frame(t) {
   }
 
   drawBG(t);
+  drawGate();
   drawPlats(t);
   drawOrbs(t);
-  if (state !== 'title') drawStaticWall(t);
   if (state !== 'title') {
+    drawBeacon();
+    drawStaticWall(t);
+    drawGhost(t);
     drawCop(t);
     drawPlayers(t);
   }
   drawParticles();
+  drawFloaters();
   drawDangerVignette(t);
   drawGrade();
   if (state !== 'title') drawHUD(t);
